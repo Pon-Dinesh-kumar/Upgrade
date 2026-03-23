@@ -15,6 +15,7 @@ import '../../features/goals/goals_screen.dart';
 import '../../features/goals/goal_form_screen.dart';
 import '../../features/timeline/timeline_screen.dart';
 import '../../features/upgrade_ai/upgrade_ai_screen.dart';
+import '../../features/upgrade_ai/ai_settings_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/profile/level_roadmap_screen.dart';
 import '../../features/settings/settings_screen.dart';
@@ -109,6 +110,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/upgrade-ai',
             builder: (context, state) => const UpgradeAIScreen(),
+          ),
+          GoRoute(
+            path: '/upgrade-ai/settings',
+            builder: (context, state) => const AISettingsScreen(),
           ),
           GoRoute(
             path: '/profile',

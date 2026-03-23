@@ -12,8 +12,9 @@ import '../../domain/entities/upgrade_group.dart';
 
 class GoalFormScreen extends ConsumerStatefulWidget {
   final String? goalId;
+  final Map<String, dynamic>? initialDraft;
 
-  const GoalFormScreen({super.key, this.goalId});
+  const GoalFormScreen({super.key, this.goalId, this.initialDraft});
 
   @override
   ConsumerState<GoalFormScreen> createState() => _GoalFormScreenState();
@@ -42,6 +43,8 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
 
     if (_isEditing) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadExisting());
+    } else if (widget.initialDraft != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadDraft(widget.initialDraft!));
     }
   }
 
@@ -58,6 +61,32 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
       _linkedHabitIds = existing.linkedHabitIds.toSet();
       _linkedUpgradeIds = existing.linkedUpgradeIds.toSet();
       _status = existing.status;
+    });
+  }
+
+  void _loadDraft(Map<String, dynamic> draft) {
+    _nameCtrl.text = (draft['name'] as String?) ?? '';
+    _descCtrl.text = (draft['description'] as String?) ?? '';
+    _outcomeCtrl.text = (draft['outcomeDescription'] as String?) ?? '';
+
+    final targetDateRaw = draft['targetDate'] as String?;
+    final linkedHabitIds = ((draft['linkedHabitIds'] as List?) ?? const [])
+        .map((e) => e.toString())
+        .toSet();
+    final linkedUpgradeIds = ((draft['linkedUpgradeIds'] as List?) ?? const [])
+        .map((e) => e.toString())
+        .toSet();
+
+    setState(() {
+      _targetDate = targetDateRaw == null || targetDateRaw.isEmpty
+          ? null
+          : DateTime.tryParse(targetDateRaw);
+      _linkedHabitIds = linkedHabitIds;
+      _linkedUpgradeIds = linkedUpgradeIds;
+      final status = (draft['status'] as String?)?.trim();
+      if (status != null && status.isNotEmpty) {
+        _status = status;
+      }
     });
   }
 

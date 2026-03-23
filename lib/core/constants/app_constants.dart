@@ -104,4 +104,50 @@ class AppConstants {
     }
     return multiplier;
   }
+
+  // ─── Meaningful Upgrade (Goal) Icons ─────────────────────────────────
+  // Each icon represents a real-life goal category.
+  static const List<int> upgradeIconOptions = [
+    0xe533, // fitness_center (gym/strength)
+    0xe566, // directions_run (running/cardio)
+    0xe3e7, // spa (wellness/meditation)
+    0xea65, // psychology (mindset/brain)
+    0xe80e, // school (education)
+    0xe865, // work (career)
+    0xe263, // attach_money (finance)
+    0xf06bb, // auto_stories (reading/books)
+    0xe0af, // email → code (coding/tech)
+    0xef76, // science (research)
+    0xe559, // brush (art/creativity)
+    0xef63, // music_note (music)
+    0xe52f, // restaurant (nutrition/food)
+    0xe539, // directions_bike (cycling)
+    0xe87c, // favorite (relationships/love)
+    0xe53a, // flight_takeoff (travel)
+  ];
+
+  // ─── Meaningful Habit Icons ──────────────────────────────────────────
+  // Each icon represents a daily actionable habit.
+  static const List<int> habitIconOptions = [
+    0xe566, // directions_run (run/jog)
+    0xe536, // directions_walk (walk)
+    0xe533, // fitness_center (exercise)
+    0xe539, // directions_bike (cycling)
+    0xe534, // pool (swimming)
+    0xe3e7, // spa (meditate/relax)
+    0xf06bb, // auto_stories (read)
+    0xe150, // edit (write/journal)
+    0xe52f, // restaurant (eat healthy)
+    0xe798, // local_drink (drink water)
+    0xf0538, // bedtime (sleep)
+    0xe514, // medication (vitamins/pills)
+    0xef63, // music_note (play music)
+    0xe425, // timer (timed practice)
+    0xe877, // task_alt → check_circle (complete task)
+    0xea65, // psychology (learn/study)
+    0xe25a, // self_improvement (yoga)
+    0xe263, // savings (save money)
+    0xe88e, // cleaning_services (clean/organize)
+    0xea35, // eco (plant/garden)
+  ];
 }

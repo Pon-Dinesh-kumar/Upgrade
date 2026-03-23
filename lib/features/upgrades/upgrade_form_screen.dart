@@ -10,8 +10,9 @@ import '../../domain/entities/upgrade_group.dart';
 
 class UpgradeFormScreen extends ConsumerStatefulWidget {
   final String? upgradeId;
+  final Map<String, dynamic>? initialDraft;
 
-  const UpgradeFormScreen({super.key, this.upgradeId});
+  const UpgradeFormScreen({super.key, this.upgradeId, this.initialDraft});
 
   @override
   ConsumerState<UpgradeFormScreen> createState() => _UpgradeFormScreenState();
@@ -23,7 +24,7 @@ class _UpgradeFormScreenState extends ConsumerState<UpgradeFormScreen> {
   late TextEditingController _descCtrl;
   late TextEditingController _outcomeCtrl;
 
-  int _selectedIconCodePoint = 0xe5d8;
+  int _selectedIconCodePoint = AppConstants.upgradeIconOptions.first;
   int _selectedColor = AppColors.upgradeColorOptions[5];
   String _difficulty = 'medium';
   late DateTime _startDate;
@@ -46,6 +47,8 @@ class _UpgradeFormScreenState extends ConsumerState<UpgradeFormScreen> {
 
     if (_isEditing) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadExisting());
+    } else if (widget.initialDraft != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadDraft(widget.initialDraft!));
     }
   }
 
@@ -65,6 +68,23 @@ class _UpgradeFormScreenState extends ConsumerState<UpgradeFormScreen> {
       _startDate = existing.startDate;
       _endDate = existing.endDate;
       _cutoffPercentage = existing.cutoffPercentage;
+    });
+  }
+
+  void _loadDraft(Map<String, dynamic> draft) {
+    _nameCtrl.text = (draft['name'] as String?) ?? '';
+    _descCtrl.text = (draft['description'] as String?) ?? '';
+    _outcomeCtrl.text = (draft['outcomeDescription'] as String?) ?? '';
+    setState(() {
+      _selectedIconCodePoint = (draft['iconCodePoint'] as int?) ?? _selectedIconCodePoint;
+      _selectedColor = (draft['color'] as int?) ?? _selectedColor;
+      _difficulty = (draft['difficulty'] as String?) ?? _difficulty;
+      final start = DateTime.tryParse((draft['startDate'] as String?) ?? '');
+      final end = DateTime.tryParse((draft['endDate'] as String?) ?? '');
+      if (start != null) _startDate = start;
+      if (end != null) _endDate = end;
+      _cutoffPercentage = ((draft['cutoffPercentage'] as num?)?.toDouble() ?? _cutoffPercentage)
+          .clamp(0.5, 1.0);
     });
   }
 
@@ -400,12 +420,7 @@ class _IconGrid extends StatelessWidget {
     required this.onSelect,
   });
 
-  static const List<int> _icons = [
-    0xe5d8, 0xe87c, 0xef3d, 0xe80e,
-    0xe865, 0xe8e8, 0xe838, 0xea65,
-    0xef63, 0xe559, 0xe3e7, 0xe52f,
-    0xe25b, 0xef76, 0xe0af, 0xe7fd,
-  ];
+  static List<int> get _icons => AppConstants.upgradeIconOptions;
 
   @override
   Widget build(BuildContext context) {

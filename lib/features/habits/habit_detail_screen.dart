@@ -274,48 +274,54 @@ class _StatsGrid extends StatelessWidget {
       children: [
         Text('Statistics', style: theme.textTheme.headlineSmall),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _StatTile(
-                icon: Icons.local_fire_department_rounded,
-                label: 'Current Streak',
-                value: '${habit.currentStreak}',
-                color: AppColors.amber,
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.local_fire_department_rounded,
+                  label: 'Current Streak',
+                  value: '${habit.currentStreak}',
+                  color: AppColors.amber,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatTile(
-                icon: Icons.emoji_events_rounded,
-                label: 'Longest Streak',
-                value: '${habit.longestStreak}',
-                color: AppColors.amber,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.emoji_events_rounded,
+                  label: 'Longest Streak',
+                  value: '${habit.longestStreak}',
+                  color: AppColors.amber,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _StatTile(
-                icon: Icons.check_circle_rounded,
-                label: 'Completions',
-                value: '$totalCompletions',
-                color: AppColors.green,
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.check_circle_rounded,
+                  label: 'Completions',
+                  value: '$totalCompletions',
+                  color: AppColors.green,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatTile(
-                icon: Icons.calendar_today_rounded,
-                label: 'Days Tracked',
-                value: '$daysSinceCreated',
-                color: AppColors.blue,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.calendar_today_rounded,
+                  label: 'Days Tracked',
+                  value: '$daysSinceCreated',
+                  color: AppColors.blue,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         CardShell(
@@ -361,8 +367,16 @@ class _StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CardShell(
-      child: Row(
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.dividerColor, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 36,
@@ -373,21 +387,18 @@ class _StatTile extends StatelessWidget {
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(color: color),
-                ),
-                Text(label, style: Theme.of(context).textTheme.bodySmall),
-              ],
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
             ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall,
           ),
         ],
       ),

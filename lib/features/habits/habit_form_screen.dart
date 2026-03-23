@@ -8,18 +8,14 @@ import '../../core/utils/gamification_engine.dart';
 import '../../data/providers.dart';
 import '../../domain/entities/habit.dart';
 
-const _iconOptions = <int>[
-  0xe571, 0xe0f7, 0xf06bb, 0xe25a, 0xe3aa, 0xe332,
-  0xe52f, 0xe1e1, 0xe534, 0xe310, 0xe539, 0xe559,
-  0xe1b1, 0xe065, 0xe900, 0xe043, 0xe491, 0xe22a,
-  0xe0c4, 0xe3e7,
-];
+final List<int> _iconOptions = AppConstants.habitIconOptions;
 
 const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 class HabitFormScreen extends ConsumerStatefulWidget {
   final String? habitId;
-  const HabitFormScreen({super.key, this.habitId});
+  final Map<String, dynamic>? initialDraft;
+  const HabitFormScreen({super.key, this.habitId, this.initialDraft});
 
   @override
   ConsumerState<HabitFormScreen> createState() => _HabitFormScreenState();
@@ -83,6 +79,27 @@ class _HabitFormScreenState extends ConsumerState<HabitFormScreen> {
 
   bool get _isEditing => widget.habitId != null;
 
+  void _initFromDraft(Map<String, dynamic> d) {
+    if (_didInit) return;
+    _didInit = true;
+    _nameCtrl.text = (d['name'] as String?) ?? '';
+    _descCtrl.text = (d['description'] as String?) ?? '';
+    _iconCodePoint = (d['iconCodePoint'] as int?) ?? _iconCodePoint;
+    _difficulty = (d['difficulty'] as String?) ?? _difficulty;
+    _frequency = (d['frequency'] as String?) ?? _frequency;
+    _upgradeId = d['upgradeId'] as String?;
+    final unit = d['unit'] as String?;
+    if (unit != null) _unitCtrl.text = unit;
+    final target = d['targetValue'];
+    if (target is num) {
+      _targetCtrl.text = target.toString();
+    }
+    final cfg = d['frequencyConfig'] as String?;
+    if (cfg != null && cfg.isNotEmpty) {
+      _customDays = cfg.split(',').map(int.tryParse).whereType<int>().toSet();
+    }
+  }
+
   int _resolveColor() {
     final upgrades = ref.read(upgradesProvider).valueOrNull ?? [];
     final upgrade = upgrades.where((u) => u.id == _upgradeId).firstOrNull;
@@ -141,6 +158,8 @@ class _HabitFormScreenState extends ConsumerState<HabitFormScreen> {
       final habits = ref.watch(habitsProvider).valueOrNull ?? [];
       final existing = habits.where((h) => h.id == widget.habitId).firstOrNull;
       if (existing != null) _initFromExisting(existing);
+    } else if (widget.initialDraft != null) {
+      _initFromDraft(widget.initialDraft!);
     }
 
     final upgrades = ref.watch(upgradesProvider).valueOrNull ?? [];

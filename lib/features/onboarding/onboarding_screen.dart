@@ -32,7 +32,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late DateTime _endDate = DateTime.now().add(const Duration(days: 30));
   double _cutoff = 0.7;
   int _upgradeColor = AppColors.upgradeColorOptions[5]; // blue default
-  int _upgradeIcon = 0xe5d8; // upgrade icon default
+  int _upgradeIcon = AppConstants.upgradeIconOptions.first; // fitness_center default
 
   // Page 4 – Habits state
   final List<_HabitDraft> _habits = [];
@@ -91,17 +91,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     });
   }
 
-  static const _habitIconOptions = [
-    0xe571, 0xe0f7, 0xf06bb, 0xe25a, 0xe3aa, 0xe332,
-    0xe52f, 0xe534, 0xe310, 0xe539, 0xe559, 0xe491,
-  ];
+  static List<int> get _habitIconOptions => AppConstants.habitIconOptions;
   static const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   void _showAddHabitSheet() {
     final nameCtrl = TextEditingController();
     String difficulty = 'medium';
     String frequency = 'daily';
-    int selectedIcon = 0xe571;
+    int selectedIcon = AppConstants.habitIconOptions.first;
     Set<int> customDays = {};
 
     showModalBottomSheet(
@@ -153,11 +150,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     onChanged: (_) => setSheetState(() {}),
                     style: TextStyle(
                         color: theme.textTheme.bodyLarge?.color ?? Colors.black, fontSize: 16),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Habit name',
                       hintText: 'e.g. Run 30 minutes',
-                      prefixIcon:
-                          Icon(Icons.flag_rounded, color: AppColors.green),
+                      prefixIcon: Icon(
+                        IconData(selectedIcon, fontFamily: 'MaterialIcons'),
+                        color: AppColors.green,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -780,10 +779,7 @@ class _CreateUpgradePage extends StatelessWidget {
   final VoidCallback onNameChanged;
   final VoidCallback onContinue;
 
-  static const _iconOptions = [
-    0xe5d8, 0xe571, 0xe0f7, 0xf06bb, 0xe25a, 0xe3aa,
-    0xe332, 0xe52f, 0xe534, 0xe310, 0xe539, 0xe491,
-  ];
+  static List<int> get _iconOptions => AppConstants.upgradeIconOptions;
 
   const _CreateUpgradePage({
     required this.nameController,
@@ -834,10 +830,14 @@ class _CreateUpgradePage extends StatelessWidget {
               controller: nameController,
               onChanged: (_) => onNameChanged(),
               style: TextStyle(color: theme.textTheme.bodyLarge?.color ?? Colors.black, fontSize: 16),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Upgrade name',
                 hintText: 'e.g. Get Fit',
-                prefixIcon: AppLogoIcon(size: 22, color: AppColors.blue),
+                prefixIcon: Icon(
+                  IconData(selectedIcon, fontFamily: 'MaterialIcons'),
+                  size: 22,
+                  color: Color(selectedColor),
+                ),
               ),
             ).animate().fadeIn(delay: 150.ms, duration: 250.ms),
             const SizedBox(height: 24),
