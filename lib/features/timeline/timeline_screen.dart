@@ -30,8 +30,11 @@ class TimelineScreen extends ConsumerStatefulWidget {
   ConsumerState<TimelineScreen> createState() => _TimelineScreenState();
 }
 
-class _TimelineScreenState extends ConsumerState<TimelineScreen> {
+class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticKeepAliveClientMixin {
   _TimelineFilter _filter = _TimelineFilter.all;
+
+  @override
+  bool get wantKeepAlive => true;
 
   List<TimelineEvent> _applyFilter(List<TimelineEvent> events) {
     if (_filter == _TimelineFilter.all) return events;
@@ -41,6 +44,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final eventsAsync = ref.watch(timelineProvider);
 
     return Scaffold(
@@ -87,7 +91,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: () =>
-                          ref.read(timelineProvider.notifier).load(),
+                          ref.invalidate(timelineProvider),
                       child: const Text('Retry'),
                     ),
                   ],

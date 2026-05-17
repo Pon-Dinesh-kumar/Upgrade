@@ -6,7 +6,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_logo_icon.dart';
 import '../../../core/widgets/card_shell.dart';
+import '../../../core/widgets/async_value_widget.dart';
+import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/utils/gamification_engine.dart';
+import '../../../core/utils/date_utils.dart';
 import '../../../data/providers.dart';
 import '../../../domain/entities/habit.dart';
 
@@ -15,56 +18,90 @@ class TodayHabitsList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final habits = ref.watch(todayHabitsProvider);
+    final habitsAsync = ref.watch(habitsProvider);
     final entries = ref.watch(todayEntriesProvider);
     final allUpgrades = ref.watch(upgradesProvider).valueOrNull ?? [];
-    final completedIds =
-        entries.where((e) => e.completed).map((e) => e.habitId).toSet();
     final theme = Theme.of(context);
 
-    if (habits.isEmpty) {
-      return _EmptyState();
-    }
+    return habitsAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => const SizedBox.shrink(),
+      data: (allHabits) {
+        // Filter habits for today directly from allHabits
+        final todayHabits = allHabits.where((h) {
+          if (h.archived) return false;
+          return AppDateUtils.shouldCompleteToday(h.frequency, h.frequencyConfig);
+        }).toList();
 
-    final upgradeMap = <String, ({String name, int color})>{};
-    for (final u in allUpgrades) {
-      upgradeMap[u.id] = (name: u.name, color: u.color);
-    }
+        final allActiveHabits = allHabits.where((h) => !h.archived).toList();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text("Today's Habits", style: theme.textTheme.headlineSmall),
-            const Spacer(),
-            Text(
-              '${completedIds.length}/${habits.length}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...habits.asMap().entries.map((entry) {
-          final index = entry.key;
-          final habit = entry.value;
-          final isDone = completedIds.contains(habit.id);
-          final upgradeInfo = upgradeMap[habit.upgradeId];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: _HabitCard(
-              habit: habit,
-              isDone: isDone,
-              upgradeName: upgradeInfo?.name,
-              upgradeColor: upgradeInfo != null ? Color(upgradeInfo.color) : null,
-            ).animate().fadeIn(
-                delay: Duration(milliseconds: 50 * index),
-                duration: 250.ms),
+        if (allActiveHabits.isEmpty) {
+          return const AppEmptyState(
+            icon: Icons.emoji_nature_rounded,
+            title: 'No habits yet',
+            subtitle: 'Tap + to create your first habit or check your schedule.',
           );
-        }),
-      ],
+        }
+
+        final habitsToShow = todayHabits.isNotEmpty ? todayHabits : allActiveHabits;
+        final isShowingAll = todayHabits.isEmpty && allActiveHabits.isNotEmpty;
+
+        final completedIds = entries.where((e) => e.completed).map((e) => e.habitId).toSet();
+        final upgradeMap = <String, ({String name, int color})>{};
+        for (final u in allUpgrades) {
+          upgradeMap[u.id] = (name: u.name, color: u.color);
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  isShowingAll ? "Your Habits" : "Today's Habits",
+                  style: theme.textTheme.headlineSmall,
+                ),
+                const Spacer(),
+                if (!isShowingAll)
+                  Text(
+                    '${completedIds.length}/${todayHabits.length}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+            if (isShowingAll)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 12),
+                child: Text(
+                  "No habits scheduled for today, but here's your list:",
+                  style: theme.textTheme.bodySmall,
+                ),
+              )
+            else
+              const SizedBox(height: 12),
+            ...habitsToShow.asMap().entries.map((entry) {
+              final habit = entry.value;
+              final isDone = completedIds.contains(habit.id);
+              final upgradeInfo = upgradeMap[habit.upgradeId];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _HabitCard(
+                  key: ValueKey('today-habit-${habit.id}'),
+                  habit: habit,
+                  isDone: isDone,
+                  upgradeName: upgradeInfo?.name,
+                  upgradeColor: upgradeInfo != null ? Color(upgradeInfo.color) : null,
+                ),
+              );
+            }),
+          ],
+        );
+      },
     );
   }
 }
@@ -76,6 +113,7 @@ class _HabitCard extends ConsumerWidget {
   final Color? upgradeColor;
 
   const _HabitCard({
+    super.key,
     required this.habit,
     required this.isDone,
     this.upgradeName,
@@ -249,36 +287,6 @@ class _CheckCircle extends StatelessWidget {
       child: isDone
           ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
           : null,
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-      child: Column(
-        children: [
-          Icon(
-            Icons.emoji_nature_rounded,
-            size: 40,
-            color: theme.textTheme.bodySmall?.color,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'No habits yet',
-            style: theme.textTheme.titleLarge,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Tap + to create your first habit',
-            style: theme.textTheme.bodyMedium,
-          ),
-        ],
-      ),
     );
   }
 }

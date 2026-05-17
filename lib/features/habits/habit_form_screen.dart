@@ -167,6 +167,7 @@ class _HabitFormScreenState extends ConsumerState<HabitFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Habit' : 'New Habit'),
+        automaticallyImplyLeading: false, // Remove back arrow
       ),
       body: upgrades.isEmpty
           ? Center(
@@ -295,7 +296,8 @@ class _HabitFormScreenState extends ConsumerState<HabitFormScreen> {
                   const SizedBox(height: 16),
 
                   DropdownButtonFormField<String>(
-                    initialValue: _upgradeId,
+                    value: _upgradeId,
+                    isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Upgrade *'),
                     validator: (v) =>
                         (v == null || v.isEmpty) ? 'Upgrade is required' : null,
@@ -310,7 +312,7 @@ class _HabitFormScreenState extends ConsumerState<HabitFormScreen> {
                                 color: Color(u.color),
                               ),
                               const SizedBox(width: 8),
-                              Flexible(child: Text(u.name, overflow: TextOverflow.ellipsis)),
+                              Text(u.name, overflow: TextOverflow.ellipsis),
                             ],
                           ),
                         )).toList(),
@@ -379,7 +381,8 @@ class _HabitFormScreenState extends ConsumerState<HabitFormScreen> {
     Map<String, Color>? colorMap,
   }) {
     return DropdownButtonFormField<String>(
-      initialValue: value,
+      value: value,
+      isExpanded: true,
       decoration: InputDecoration(labelText: label),
       items: items.map((item) {
         final display = item[0].toUpperCase() + item.substring(1);

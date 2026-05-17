@@ -43,7 +43,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                   style: Theme.of(context).textTheme.bodyLarge),
               const SizedBox(height: 8),
               FilledButton.tonal(
-                onPressed: () => ref.read(goalsProvider.notifier).load(),
+                onPressed: () => ref.invalidate(goalsProvider),
                 child: const Text('Retry'),
               ),
             ],

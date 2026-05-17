@@ -197,21 +197,7 @@ class _UpgradeFormScreenState extends ConsumerState<UpgradeFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Upgrade' : 'New Upgrade'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save'),
-            ),
-          ),
-        ],
+        automaticallyImplyLeading: false, // Remove back arrow
       ),
       body: Form(
         key: _formKey,
@@ -377,6 +363,20 @@ class _UpgradeFormScreenState extends ConsumerState<UpgradeFormScreen> {
             _ColorRow(
               selected: _selectedColor,
               onSelect: (c) => setState(() => _selectedColor = c),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _saving ? null : _save,
+                child: _saving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      )
+                    : Text(_isEditing ? 'Save Changes' : 'Create Upgrade'),
+              ),
             ),
           ],
         ),

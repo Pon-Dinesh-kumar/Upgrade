@@ -48,7 +48,7 @@ class XpBar extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: AnimatedFractionallySizedBox(
-              duration: const Duration(milliseconds: 600),
+              duration: const Duration(milliseconds: 800),
               curve: Curves.easeOutCubic,
               widthFactor: progress.clamp(0.0, 1.0),
               alignment: Alignment.centerLeft,
@@ -56,6 +56,13 @@ class XpBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.blue,
                   borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.blue.withValues(alpha: 0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
               ),
             ),

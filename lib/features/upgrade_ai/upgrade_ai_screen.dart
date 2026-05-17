@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_logo_icon.dart';
 import '../../core/widgets/card_shell.dart';
-import '../../core/widgets/notion_avatar_display.dart';
+import '../../core/widgets/app_avatar.dart';
 import '../../data/providers.dart';
 import '../goals/goal_form_screen.dart';
 import '../habits/habit_form_screen.dart';
@@ -20,7 +20,7 @@ class UpgradeAIScreen extends ConsumerStatefulWidget {
   ConsumerState<UpgradeAIScreen> createState() => _UpgradeAIScreenState();
 }
 
-class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> {
+class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with AutomaticKeepAliveClientMixin {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final List<AIChatMessage> _messages = [];
@@ -30,6 +30,9 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> {
   bool _hasApiKey = false;
   Timer? _typingTimer;
   int _typingDots = 0;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -152,6 +155,7 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: model,
+                isExpanded: true,
                 items: const [
                   DropdownMenuItem(value: 'gemini-2.5-flash', child: Text('gemini-2.5-flash')),
                   DropdownMenuItem(value: 'gemini-flash-latest', child: Text('gemini-flash-latest')),
@@ -353,6 +357,7 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final profile = ref.watch(userProfileProvider).valueOrNull;
     return Scaffold(
@@ -506,18 +511,10 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> {
                         ),
                         if (isUser) ...[
                           const SizedBox(width: 8),
-                          ClipOval(
-                            child: SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: profile != null
-                                  ? NotionAvatarDisplay(avatarData: profile.avatarData, size: 28)
-                                  : CircleAvatar(
-                                      radius: 14,
-                                      backgroundColor: Colors.grey.shade300,
-                                      child: const Icon(Icons.person_rounded, size: 16, color: Colors.black87),
-                                    ),
-                            ),
+                          AppAvatar(
+                            avatarData: profile?.avatarData,
+                            customAvatarPath: profile?.customAvatarPath,
+                            size: 28,
                           ),
                         ],
                       ],

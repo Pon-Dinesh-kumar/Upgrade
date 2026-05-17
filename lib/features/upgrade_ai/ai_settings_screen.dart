@@ -86,6 +86,7 @@ class _AISettingsScreenState extends ConsumerState<AISettingsScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: _model,
+                  isExpanded: true,
                   items: const [
                     DropdownMenuItem(value: 'gemini-2.5-flash', child: Text('gemini-2.5-flash')),
                     DropdownMenuItem(value: 'gemini-flash-latest', child: Text('gemini-flash-latest')),

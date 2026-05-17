@@ -5,6 +5,7 @@ class UserProfile {
   final String id;
   final String username;
   final Map<String, int> avatarData;
+  final String? customAvatarPath;
   final int level;
   final int totalXp;
   final int currentStreak;
@@ -51,6 +52,7 @@ class UserProfile {
     String? id,
     required this.username,
     Map<String, int>? avatarData,
+    this.customAvatarPath,
     this.level = 1,
     this.totalXp = 0,
     this.currentStreak = 0,
@@ -64,6 +66,7 @@ class UserProfile {
   UserProfile copyWith({
     String? username,
     Map<String, int>? avatarData,
+    String? customAvatarPath,
     int? level,
     int? totalXp,
     int? currentStreak,
@@ -74,6 +77,7 @@ class UserProfile {
       id: id,
       username: username ?? this.username,
       avatarData: avatarData ?? this.avatarData,
+      customAvatarPath: customAvatarPath ?? this.customAvatarPath,
       level: level ?? this.level,
       totalXp: totalXp ?? this.totalXp,
       currentStreak: currentStreak ?? this.currentStreak,
@@ -87,6 +91,7 @@ class UserProfile {
         'id': id,
         'username': username,
         'avatarData': avatarData,
+        'customAvatarPath': customAvatarPath,
         'level': level,
         'totalXp': totalXp,
         'currentStreak': currentStreak,
@@ -107,6 +112,7 @@ class UserProfile {
       id: json['id'] as String,
       username: json['username'] as String,
       avatarData: avatar,
+      customAvatarPath: json['customAvatarPath'] as String?,
       level: json['level'] as int? ?? 1,
       totalXp: json['totalXp'] as int? ?? 0,
       currentStreak: json['currentStreak'] as int? ?? 0,

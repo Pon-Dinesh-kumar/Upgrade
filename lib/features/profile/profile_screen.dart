@@ -6,7 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/xp_calculator.dart';
 import '../../core/widgets/card_shell.dart';
 import '../../core/widgets/level_badge.dart';
-import '../../core/widgets/notion_avatar_display.dart';
+import '../../core/widgets/app_avatar.dart';
 import '../../core/widgets/xp_bar.dart';
 import '../../data/providers.dart';
 import '../../domain/entities/user_profile.dart';
@@ -38,7 +38,7 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () =>
-                    ref.read(userProfileProvider.notifier).load(),
+                    ref.invalidate(userProfileProvider),
                 child: const Text('Retry'),
               ),
             ],
@@ -164,26 +164,11 @@ class _ProfileHeader extends StatelessWidget {
                   color: theme.dividerColor,
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    NotionAvatarDisplay(
-                      avatarData: avatarData,
-                      size: 88,
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withValues(alpha: 0.9),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.edit_rounded, size: 14, color: Colors.white),
-                      ),
-                    ),
-                  ],
+                child: AppAvatar(
+                  avatarData: avatarData,
+                  customAvatarPath: profile.customAvatarPath,
+                  size: 88,
+                  showEditIcon: true,
                 ),
               ),
             ),

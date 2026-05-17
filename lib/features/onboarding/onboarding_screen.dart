@@ -1,9 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_logo_icon.dart';
 import '../../core/widgets/card_shell.dart';
 import '../../core/widgets/notion_avatar_display.dart';
@@ -40,7 +43,66 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // Page 5 – Profile state
   final _usernameController = TextEditingController();
   Map<String, int> _avatarData = UserProfile.randomAvatarData();
+  String? _customAvatarPath;
   bool _isLaunching = false;
+
+  Future<void> _restoreBackup() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (result == null || result.files.single.path == null) return;
+
+      final file = File(result.files.single.path!);
+      final content = await file.readAsString();
+      final map = jsonDecode(content) as Map<String, dynamic>;
+
+      final storage = ref.read(localStorageProvider).valueOrNull;
+      if (storage == null) return;
+      await storage.importFromBackup(map);
+      
+      // Re-load all providers
+      ref.invalidate(userProfileProvider);
+      ref.invalidate(upgradesProvider);
+      ref.invalidate(habitsProvider);
+      ref.invalidate(upgradeHabitsProvider);
+      
+      await Future.wait([
+        ref.read(userProfileProvider.future),
+        ref.read(upgradesProvider.future),
+        ref.read(habitsProvider.future),
+        ref.read(upgradeHabitsProvider.future),
+      ]);
+
+      if (mounted) context.go('/launch');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to restore backup: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickProfileImage() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+      );
+      if (result == null || result.files.single.path == null) return;
+      
+      setState(() {
+        _customAvatarPath = result.files.single.path;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e')),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -54,8 +116,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _goToPage(int page) {
     _pageController.animateToPage(
       page,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeInOutCubic,
     );
   }
 
@@ -365,7 +427,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final profile = UserProfile(
         username: _usernameController.text.trim(),
         avatarData: _avatarData,
+        customAvatarPath: _customAvatarPath,
       );
+      // Wait for profile to save before proceeding
       await ref.read(userProfileProvider.notifier).save(profile);
 
       final upgrade = UpgradeGroup(
@@ -380,9 +444,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ? null
             : _outcomeController.text.trim(),
       );
+      // Wait for upgrade to save
       await ref.read(upgradesProvider.notifier).save(upgrade);
 
-      for (final draft in _habits) {
+      final List<Habit> habitsToSave = [];
+      final List<UpgradeHabit> membershipsToSave = [];
+
+      for (int i = 0; i < _habits.length; i++) {
+        final draft = _habits[i];
         final habit = Habit(
           name: draft.name,
           upgradeId: upgrade.id,
@@ -390,16 +459,33 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           frequency: draft.frequency,
           frequencyConfig: draft.frequencyConfig,
           iconCodePoint: draft.iconCodePoint,
+          color: upgrade.color,
         );
-        await ref.read(habitsProvider.notifier).save(habit);
+        habitsToSave.add(habit);
 
         final membership = UpgradeHabit(
           upgradeId: upgrade.id,
           habitId: habit.id,
           joinedDate: DateTime.now(),
         );
-        await ref.read(upgradeHabitsProvider.notifier).save(membership);
+        membershipsToSave.add(membership);
       }
+
+      // Save all habits and memberships in batch
+      await ref.read(habitsProvider.notifier).saveAll(habitsToSave);
+      await ref.read(upgradeHabitsProvider.notifier).saveAll(membershipsToSave);
+
+      // Re-load all providers to ensure state is fresh
+      ref.invalidate(userProfileProvider);
+      ref.invalidate(upgradesProvider);
+      ref.invalidate(habitsProvider);
+      ref.invalidate(upgradeHabitsProvider);
+      
+      // Wait for futures to complete
+      await ref.read(userProfileProvider.future);
+      await ref.read(upgradesProvider.future);
+      await ref.read(habitsProvider.future);
+      await ref.read(upgradeHabitsProvider.future);
 
       if (mounted) context.go('/launch');
     } catch (_) {
@@ -418,11 +504,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             Expanded(
               child: PageView(
                 controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
+                physics: _currentPage < 4 
+                    ? const BouncingScrollPhysics() 
+                    : const NeverScrollableScrollPhysics(),
+                scrollDirection: _currentPage < 4 ? Axis.vertical : Axis.horizontal,
                 onPageChanged: (i) => setState(() => _currentPage = i),
                 children: [
-                  _WelcomePage(onGetStarted: _nextPage),
-                  _HowItWorksPage(onNext: _nextPage),
+                  const _WelcomePage(),
+                  _IntroPage(
+                    onRestore: _restoreBackup,
+                  ),
                   _CreateUpgradePage(
                     nameController: _upgradeNameController,
                     outcomeController: _outcomeController,
@@ -457,16 +548,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   _ProfilePage(
                     usernameController: _usernameController,
                     avatarData: _avatarData,
+                    customAvatarPath: _customAvatarPath,
                     isLaunching: _isLaunching,
                     onAvatarRandomize: () =>
-                        setState(() => _avatarData = UserProfile.randomAvatarData()),
+                        setState(() {
+                          _avatarData = UserProfile.randomAvatarData();
+                          _customAvatarPath = null;
+                        }),
+                    onPickCustomAvatar: _pickProfileImage,
                     onUsernameChanged: () => setState(() {}),
                     onLaunch: _launchApp,
                   ),
                 ],
               ),
             ),
-            _PageIndicator(currentPage: _currentPage, pageCount: 5),
             const SizedBox(height: 24),
           ],
         ),
@@ -593,8 +688,7 @@ class _PrimaryButton extends StatelessWidget {
 // Page 1 – Welcome
 // ---------------------------------------------------------------------------
 class _WelcomePage extends StatelessWidget {
-  final VoidCallback onGetStarted;
-  const _WelcomePage({required this.onGetStarted});
+  const _WelcomePage();
 
   @override
   Widget build(BuildContext context) {
@@ -640,122 +734,221 @@ class _WelcomePage extends StatelessWidget {
             'Turn your real goals into a system you can\ntrack, complete, and grow from.',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.textTheme.bodySmall?.color, height: 1.5),
+                color: theme.textTheme.bodySmall?.color,
+                height: 1.4,
+                fontSize: (theme.textTheme.bodyLarge?.fontSize ?? 16) - 1,
+              ),
           )
               .animate()
               .fadeIn(delay: 300.ms, duration: 300.ms)
               .slideY(begin: 0.2, curve: Curves.easeOutCubic),
           const Spacer(flex: 3),
-          _PrimaryButton(label: 'Get Started', onPressed: onGetStarted)
-              .animate()
-              .fadeIn(delay: 450.ms, duration: 250.ms)
-              .slideY(begin: 0.4, curve: Curves.easeOutCubic),
-          const Spacer(),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _ShimmerArrowIndicator(),
+              const SizedBox(height: 12),
+              Text(
+                 'SWIPE UP TO START',
+                 style: const TextStyle(
+                   color: AppColors.blue,
+                   fontSize: 15,
+                   fontWeight: FontWeight.w800,
+                   letterSpacing: 2,
+                 ),
+               ),
+            ],
+          ).animate().fadeIn(delay: 450.ms, duration: 250.ms),
+          const SizedBox(height: 48),
         ],
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Page 2 – How It Works
-// ---------------------------------------------------------------------------
-class _HowItWorksPage extends StatelessWidget {
-  final VoidCallback onNext;
-  const _HowItWorksPage({required this.onNext});
+class _ShimmerArrowIndicator extends StatelessWidget {
+  final bool isSubtle;
+  const _ShimmerArrowIndicator({this.isSubtle = false});
 
-  static const _steps = [
-    (
-      icon: Icons.rocket_launch_rounded,
-      color: AppColors.blue,
-      useAppLogo: true,
-      title: 'Define an Upgrade',
-      body: 'Pick a real goal. Fitness, learning, career\u2014anything you want to improve.',
-    ),
-    (
-      icon: Icons.check_circle_rounded,
-      color: AppColors.green,
-      useAppLogo: false,
-      title: 'Build daily habits',
-      body: 'Break your goal into small, repeatable actions that compound over time.',
-    ),
-    (
-      icon: Icons.star_rounded,
-      color: AppColors.amber,
-      useAppLogo: false,
-      title: 'Level up for real',
-      body: 'Complete upgrades to gain XP and level up.\nYour level = your real-life progress.',
-    ),
-  ];
+  @override
+  Widget build(BuildContext context) {
+    final color = isSubtle 
+        ? Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.3) ?? AppColors.blue 
+        : AppColors.blue;
+    final size = isSubtle ? 32.0 : 44.0;
+    final spacing = isSubtle ? 10.0 : 14.0;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        for (int i = 0; i < 4; i++)
+          Padding(
+            padding: EdgeInsets.only(bottom: i * spacing),
+            child: Icon(
+              Icons.keyboard_arrow_up_rounded,
+              color: color.withValues(alpha: 1.0 - (i * 0.2)),
+              size: size,
+            )
+                .animate(onPlay: (c) => c.repeat())
+                .shimmer(
+                  delay: (i * 100).ms,
+                  duration: isSubtle ? 2000.ms : 1500.ms,
+                  color: Colors.white.withValues(alpha: isSubtle ? 0.2 : 0.4),
+                )
+                .slideY(
+                  begin: 0.4,
+                  end: -0.4,
+                  duration: isSubtle ? 2000.ms : 1500.ms,
+                  curve: Curves.easeInOut,
+                )
+                .fadeIn(duration: 600.ms)
+                .then(delay: 600.ms)
+                .fadeOut(duration: 600.ms),
+          ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Page 2 – Choice Page (Backup vs New)
+// ---------------------------------------------------------------------------
+class _IntroPage extends StatelessWidget {
+  final VoidCallback onRestore;
+
+  const _IntroPage({
+    required this.onRestore,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 56),
-          const _SectionTitle(title: 'How UPGRADE\nWorks'),
+          const SizedBox(height: 48),
+          Text(
+            'How UPGRADE\nWorks',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              height: 1.1,
+            ),
+          ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.1),
           const SizedBox(height: 32),
-          ...List.generate(_steps.length, (i) {
-            final s = _steps[i];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: CardShell(
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: s.color.withValues(alpha: 0.15),
-                      ),
-                      child: Center(
-                        child: s.useAppLogo
-                            ? AppLogoIcon(size: 24, color: s.color)
-                            : Icon(s.icon, color: s.color, size: 24),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(s.title,
-                              style: TextStyle(
-                                color: s.color,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                              )),
-                          const SizedBox(height: 4),
-                          Text(s.body,
-                              style: TextStyle(
-                                color: theme.textTheme.bodySmall?.color,
-                                fontSize: 13,
-                                height: 1.4,
-                              )),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-                .animate()
-                .fadeIn(delay: (100 + i * 120).ms, duration: 250.ms)
-                .slideX(begin: 0.08, curve: Curves.easeOutCubic);
-          }),
+          _FeatureCard(
+            icon: Icons.keyboard_double_arrow_up_rounded,
+            iconColor: AppColors.blue,
+            title: 'Define an Upgrade',
+            description:
+                'Pick a real goal. Fitness, learning, career\u2014anything you want to improve.',
+            delay: 200.ms,
+          ),
+          const SizedBox(height: 16),
+          _FeatureCard(
+            icon: Icons.check_circle_rounded,
+            iconColor: AppColors.green,
+            title: 'Build daily habits',
+            description:
+                'Break your goal into small, repeatable actions that compound over time.',
+            delay: 400.ms,
+          ),
+          const SizedBox(height: 16),
+          _FeatureCard(
+            icon: Icons.stars_rounded,
+            iconColor: AppColors.amber,
+            title: 'Level up for real',
+            description:
+                'Complete upgrades to gain XP and level up. Your level = your real-life progress.',
+            delay: 600.ms,
+          ),
           const Spacer(),
-          _PrimaryButton(label: 'Next', onPressed: onNext)
-              .animate()
-              .fadeIn(delay: 500.ms, duration: 250.ms),
-          const SizedBox(height: 32),
+          Center(
+            child: const _ShimmerArrowIndicator(isSubtle: true),
+          ).animate().fadeIn(delay: 800.ms),
+          const SizedBox(height: 16),
+          Center(
+            child: TextButton.icon(
+              onPressed: onRestore,
+              icon: const Icon(Icons.settings_backup_restore_rounded, size: 18),
+              label: const Text('Restore from JSON backup', style: TextStyle(fontSize: 13)),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              ),
+            ),
+          ).animate().fadeIn(delay: 1000.ms),
+          const SizedBox(height: 24),
         ],
       ),
     );
+  }
+}
+
+class _FeatureCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String description;
+  final Duration delay;
+
+  const _FeatureCard({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.description,
+    required this.delay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: iconColor.withValues(alpha: 0.1),
+            ),
+            child: Icon(icon, color: iconColor, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: iconColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.textTheme.bodySmall?.color,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: delay, duration: 400.ms).slideY(begin: 0.1);
   }
 }
 
@@ -822,7 +1015,7 @@ class _CreateUpgradePage extends StatelessWidget {
             const SizedBox(height: 48),
             const _SectionTitle(
               title: 'Set your first goal',
-              subtitle: 'An Upgrade is a meaningful goal with a timeline. You\u2019ll build habits to power it.',
+              subtitle: 'Define your objective and timeline. This will be\nthe core of your growth journey.',
             ),
             const SizedBox(height: 28),
 
@@ -1285,16 +1478,20 @@ class _AddHabitsPage extends StatelessWidget {
 class _ProfilePage extends StatelessWidget {
   final TextEditingController usernameController;
   final Map<String, int> avatarData;
+  final String? customAvatarPath;
   final bool isLaunching;
   final VoidCallback onAvatarRandomize;
+  final VoidCallback onPickCustomAvatar;
   final VoidCallback onUsernameChanged;
   final VoidCallback onLaunch;
 
   const _ProfilePage({
     required this.usernameController,
     required this.avatarData,
+    this.customAvatarPath,
     required this.isLaunching,
     required this.onAvatarRandomize,
+    required this.onPickCustomAvatar,
     required this.onUsernameChanged,
     required this.onLaunch,
   });
@@ -1346,19 +1543,38 @@ class _ProfilePage extends StatelessWidget {
                       border: Border.all(color: theme.dividerColor),
                     ),
                     clipBehavior: Clip.antiAlias,
-                    child: NotionAvatarDisplay(
-                      avatarData: avatarData,
-                      size: 120,
-                    ),
+                    child: customAvatarPath != null
+                        ? Image.file(
+                            File(customAvatarPath!),
+                            fit: BoxFit.cover,
+                          )
+                        : NotionAvatarDisplay(
+                            avatarData: avatarData,
+                            size: 120,
+                          ),
                   ),
                   const SizedBox(height: 12),
-                  TextButton.icon(
-                    onPressed: onAvatarRandomize,
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                    label: const Text('Randomize'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.blue,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton.icon(
+                        onPressed: onAvatarRandomize,
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Randomize'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.blue,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: onPickCustomAvatar,
+                        icon: const Icon(Icons.upload_rounded, size: 18),
+                        label: const Text('Upload'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.green,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1376,36 +1592,6 @@ class _ProfilePage extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Page Indicator Dots
-// ---------------------------------------------------------------------------
-class _PageIndicator extends StatelessWidget {
-  final int currentPage;
-  final int pageCount;
-  const _PageIndicator({required this.currentPage, required this.pageCount});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(pageCount, (i) {
-        final isActive = i == currentPage;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: isActive ? 28 : 8,
-          height: 8,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            color: isActive ? AppColors.blue : Theme.of(context).dividerColor,
-          ),
-        );
-      }),
     );
   }
 }

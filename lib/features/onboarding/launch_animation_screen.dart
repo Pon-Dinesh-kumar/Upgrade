@@ -2,17 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_logo_icon.dart';
 
-class LaunchAnimationScreen extends StatefulWidget {
+class LaunchAnimationScreen extends ConsumerStatefulWidget {
   const LaunchAnimationScreen({super.key});
 
   @override
-  State<LaunchAnimationScreen> createState() => _LaunchAnimationScreenState();
+  ConsumerState<LaunchAnimationScreen> createState() => _LaunchAnimationScreenState();
 }
 
-class _LaunchAnimationScreenState extends State<LaunchAnimationScreen>
+class _LaunchAnimationScreenState extends ConsumerState<LaunchAnimationScreen>
     with TickerProviderStateMixin {
   int _completedTasks = 0;
   double _xpProgress = 0.0;
@@ -52,6 +54,14 @@ class _LaunchAnimationScreenState extends State<LaunchAnimationScreen>
     await Future.delayed(1200.ms);
     if (!mounted) return;
     setState(() => _canProceed = true);
+  }
+
+  void _finish() async {
+    // Final check for data
+    await ref.read(habitsProvider.future);
+    await ref.read(upgradesProvider.future);
+    
+    if (mounted) context.go('/');
   }
 
   @override
@@ -203,7 +213,7 @@ class _LaunchAnimationScreenState extends State<LaunchAnimationScreen>
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: () => context.go('/'),
+                    onPressed: _finish,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.blue,
                       shape: RoundedRectangleBorder(

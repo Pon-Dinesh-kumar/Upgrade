@@ -22,90 +22,92 @@ class StatsHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(userProfileProvider).valueOrNull;
+    final profileAsync = ref.watch(userProfileProvider);
     final activeUpgrades = ref.watch(activeUpgradesProvider);
     final theme = Theme.of(context);
 
-    if (profile == null) {
-      return const SizedBox(height: 160);
-    }
+    return profileAsync.when(
+      data: (profile) {
+        if (profile == null) return const SizedBox(height: 160);
+        
+        final xpProgress = XpCalculator.progressToNextLevel(profile.totalXp);
+        final xpNeeded = XpCalculator.xpRequiredForLevel(profile.level);
+        final xpAccumulated = XpCalculator.totalXpForLevel(profile.level - 1);
+        final xpInLevel = profile.totalXp - xpAccumulated;
 
-    final xpProgress = XpCalculator.progressToNextLevel(profile.totalXp);
-    final xpNeeded = XpCalculator.xpRequiredForLevel(profile.level);
-    final xpAccumulated = XpCalculator.totalXpForLevel(profile.level - 1);
-    final xpInLevel = profile.totalXp - xpAccumulated;
+        final levelCardBg = theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3);
 
-    final levelCardBg = theme.brightness == Brightness.dark
-        ? AppColors.darkSurface
-        : AppColors.lightSurface;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: levelCardBg,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: levelCardBg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: theme.dividerColor),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Text(
-                    '${_greeting()},',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    profile.username,
-                    style: theme.textTheme.headlineMedium,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Text(
-                        profile.rank,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: AppColors.blue,
-                          fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${_greeting()},',
+                          style: theme.textTheme.bodyMedium,
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      StreakFlame(
-                        streak: profile.currentStreak,
-                        size: 18,
-                      ),
-                      if (activeUpgrades.isNotEmpty) ...[
-                        const SizedBox(width: 16),
-                        _ActiveUpgradesBadge(count: activeUpgrades.length),
+                        const SizedBox(height: 2),
+                        Text(
+                          profile.username,
+                          style: theme.textTheme.headlineMedium,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Text(
+                              profile.rank,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: AppColors.blue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            StreakFlame(
+                              streak: profile.currentStreak,
+                              size: 18,
+                            ),
+                            if (activeUpgrades.isNotEmpty) ...[
+                              const SizedBox(width: 16),
+                              _ActiveUpgradesBadge(count: activeUpgrades.length),
+                            ],
+                          ],
+                        ),
                       ],
-                    ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: () => context.go('/level-roadmap'),
+                    child: LevelBadge(level: profile.level, size: 52),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 16),
-            GestureDetector(
-              onTap: () => context.go('/level-roadmap'),
-              child: LevelBadge(level: profile.level, size: 52),
-            ),
-          ],
-        ).animate().fadeIn(duration: 300.ms),
-        const SizedBox(height: 16),
-        XpBar(
-          progress: xpProgress,
-          level: profile.level,
-          currentXp: xpInLevel.clamp(0, xpNeeded),
-          xpForNext: xpNeeded,
-        ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
-        const SizedBox(height: 8),
-        ],
-      ),
+              const SizedBox(height: 16),
+              XpBar(
+                progress: xpProgress,
+                level: profile.level,
+                currentXp: xpInLevel.clamp(0, xpNeeded),
+                xpForNext: xpNeeded,
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox(height: 160),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }

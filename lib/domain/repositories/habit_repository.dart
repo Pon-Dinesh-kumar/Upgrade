@@ -5,6 +5,7 @@ abstract class HabitRepository {
   Future<List<Habit>> getAllHabits();
   Future<Habit?> getHabit(String id);
   Future<void> saveHabit(Habit habit);
+  Future<void> saveAllHabits(List<Habit> habits);
   Future<void> deleteHabit(String id);
   Future<List<Habit>> getHabitsByUpgrade(String upgradeId);
   Future<List<Habit>> getActiveHabits();

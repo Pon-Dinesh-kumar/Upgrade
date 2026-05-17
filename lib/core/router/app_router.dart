@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
@@ -42,90 +43,137 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/launch',
         builder: (context, state) => const LaunchAnimationScreen(),
       ),
-      ShellRoute(
-        builder: (context, state, child) => AppShell(child: child),
+      StatefulShellRoute(
+        builder: (context, state, navigationShell) => navigationShell,
+        navigatorContainerBuilder: (context, navigationShell, children) {
+          return AppShell(
+            navigationShell: navigationShell,
+            children: children,
+          );
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/upgrades',
+                builder: (context, state) => const UpgradesScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'new',
+                    pageBuilder: (context, state) => CupertinoPage(
+                      key: state.pageKey,
+                      child: const UpgradeFormScreen(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    pageBuilder: (context, state) => CupertinoPage(
+                      key: state.pageKey,
+                      child: UpgradeDetailScreen(upgradeId: state.pathParameters['id']!),
+                    ),
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        pageBuilder: (context, state) => CupertinoPage(
+                          key: state.pageKey,
+                          child: UpgradeFormScreen(upgradeId: state.pathParameters['id']),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/habits',
+                builder: (context, state) => const HabitsScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'new',
+                    pageBuilder: (context, state) => CupertinoPage(
+                      key: state.pageKey,
+                      child: const HabitFormScreen(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    pageBuilder: (context, state) => CupertinoPage(
+                      key: state.pageKey,
+                      child: HabitDetailScreen(habitId: state.pathParameters['id']!),
+                    ),
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        pageBuilder: (context, state) => CupertinoPage(
+                          key: state.pageKey,
+                          child: HabitFormScreen(habitId: state.pathParameters['id']),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (context, state) => const DashboardScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/upgrade-ai',
+                builder: (context, state) => const UpgradeAIScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'settings',
+                    builder: (context, state) => const AISettingsScreen(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/settings',
+                builder: (context, state) => const SettingsScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
+      // Independent routes
+      GoRoute(
+        path: '/timeline',
+        builder: (context, state) => const TimelineScreen(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/level-roadmap',
+        builder: (context, state) => const LevelRoadmapScreen(),
+      ),
+      GoRoute(
+        path: '/goals',
+        builder: (context, state) => const GoalsScreen(),
         routes: [
           GoRoute(
-            path: '/',
-            builder: (context, state) => const DashboardScreen(),
+            path: 'new',
+            builder: (context, state) => const GoalFormScreen(),
           ),
           GoRoute(
-            path: '/habits',
-            builder: (context, state) => const HabitsScreen(),
-            routes: [
-              GoRoute(
-                path: 'new',
-                builder: (context, state) => const HabitFormScreen(),
-              ),
-              GoRoute(
-                path: ':id',
-                builder: (context, state) => HabitDetailScreen(habitId: state.pathParameters['id']!),
-                routes: [
-                  GoRoute(
-                    path: 'edit',
-                    builder: (context, state) => HabitFormScreen(habitId: state.pathParameters['id']),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          GoRoute(
-            path: '/upgrades',
-            builder: (context, state) => const UpgradesScreen(),
-            routes: [
-              GoRoute(
-                path: 'new',
-                builder: (context, state) => const UpgradeFormScreen(),
-              ),
-              GoRoute(
-                path: ':id',
-                builder: (context, state) => UpgradeDetailScreen(upgradeId: state.pathParameters['id']!),
-                routes: [
-                  GoRoute(
-                    path: 'edit',
-                    builder: (context, state) => UpgradeFormScreen(upgradeId: state.pathParameters['id']),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          GoRoute(
-            path: '/goals',
-            builder: (context, state) => const GoalsScreen(),
-            routes: [
-              GoRoute(
-                path: 'new',
-                builder: (context, state) => const GoalFormScreen(),
-              ),
-              GoRoute(
-                path: ':id/edit',
-                builder: (context, state) => GoalFormScreen(goalId: state.pathParameters['id']),
-              ),
-            ],
-          ),
-          GoRoute(
-            path: '/timeline',
-            builder: (context, state) => const TimelineScreen(),
-          ),
-          GoRoute(
-            path: '/upgrade-ai',
-            builder: (context, state) => const UpgradeAIScreen(),
-          ),
-          GoRoute(
-            path: '/upgrade-ai/settings',
-            builder: (context, state) => const AISettingsScreen(),
-          ),
-          GoRoute(
-            path: '/profile',
-            builder: (context, state) => const ProfileScreen(),
-          ),
-          GoRoute(
-            path: '/level-roadmap',
-            builder: (context, state) => const LevelRoadmapScreen(),
-          ),
-          GoRoute(
-            path: '/settings',
-            builder: (context, state) => const SettingsScreen(),
+            path: ':id/edit',
+            builder: (context, state) => GoalFormScreen(goalId: state.pathParameters['id']),
           ),
         ],
       ),

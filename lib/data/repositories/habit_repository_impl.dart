@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../domain/entities/habit.dart';
 import '../../domain/entities/habit_entry.dart';
 import '../../domain/repositories/habit_repository.dart';
@@ -7,6 +8,8 @@ class HabitRepositoryImpl implements HabitRepository {
   final LocalStorage _storage;
   static const _habitsKey = 'habits';
   static const _entriesKey = 'habit_entries';
+  
+  Completer<void>? _writeLock;
 
   HabitRepositoryImpl(this._storage);
 
@@ -28,21 +31,51 @@ class HabitRepositoryImpl implements HabitRepository {
 
   @override
   Future<void> saveHabit(Habit habit) async {
-    final habits = await getAllHabits();
-    final index = habits.indexWhere((h) => h.id == habit.id);
-    if (index >= 0) {
-      habits[index] = habit;
-    } else {
-      habits.add(habit);
+    await saveAllHabits([habit]);
+  }
+
+  @override
+  Future<void> saveAllHabits(List<Habit> habitsToSave) async {
+    // Simple lock to prevent concurrent writes overwriting each other
+    while (_writeLock != null) {
+      await _writeLock!.future;
     }
-    await _storage.writeList(_habitsKey, habits.map((h) => h.toJson()).toList());
+    _writeLock = Completer<void>();
+
+    try {
+      final habits = await getAllHabits();
+      for (final habit in habitsToSave) {
+        final index = habits.indexWhere((h) => h.id == habit.id);
+        if (index >= 0) {
+          habits[index] = habit;
+        } else {
+          habits.add(habit);
+        }
+      }
+      await _storage.writeList(_habitsKey, habits.map((h) => h.toJson()).toList());
+    } finally {
+      final lock = _writeLock;
+      _writeLock = null;
+      lock?.complete();
+    }
   }
 
   @override
   Future<void> deleteHabit(String id) async {
-    final habits = await getAllHabits();
-    habits.removeWhere((h) => h.id == id);
-    await _storage.writeList(_habitsKey, habits.map((h) => h.toJson()).toList());
+    while (_writeLock != null) {
+      await _writeLock!.future;
+    }
+    _writeLock = Completer<void>();
+
+    try {
+      final habits = await getAllHabits();
+      habits.removeWhere((h) => h.id == id);
+      await _storage.writeList(_habitsKey, habits.map((h) => h.toJson()).toList());
+    } finally {
+      final lock = _writeLock;
+      _writeLock = null;
+      lock?.complete();
+    }
   }
 
   @override

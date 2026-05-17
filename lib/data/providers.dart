@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,6 +26,8 @@ import '../domain/repositories/goal_repository.dart';
 import '../domain/repositories/achievement_repository.dart';
 import '../domain/repositories/timeline_repository.dart';
 import '../core/utils/xp_calculator.dart';
+import '../core/utils/date_utils.dart';
+import '../core/utils/gamification_engine.dart';
 import '../core/constants/app_constants.dart';
 
 // --- Infrastructure ---
@@ -101,28 +104,19 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 
 // --- User Profile ---
 
-final userProfileProvider = StateNotifierProvider<UserProfileNotifier, AsyncValue<UserProfile?>>((ref) {
-  return UserProfileNotifier(ref);
+final userProfileProvider = AsyncNotifierProvider<UserProfileNotifier, UserProfile?>(() {
+  return UserProfileNotifier();
 });
 
-class UserProfileNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
-  final Ref _ref;
-  UserProfileNotifier(this._ref) : super(const AsyncValue.loading()) {
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final repo = await _ref.read(userRepoProvider.future);
-      final profile = await repo.getProfile();
-      state = AsyncValue.data(profile);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+class UserProfileNotifier extends AsyncNotifier<UserProfile?> {
+  @override
+  FutureOr<UserProfile?> build() async {
+    final repo = await ref.watch(userRepoProvider.future);
+    return repo.getProfile();
   }
 
   Future<void> save(UserProfile profile) async {
-    final repo = await _ref.read(userRepoProvider.future);
+    final repo = await ref.read(userRepoProvider.future);
     await repo.saveProfile(profile);
     state = AsyncValue.data(profile);
   }
@@ -155,245 +149,216 @@ class UserProfileNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
 
 // --- Habits ---
 
-final habitsProvider = StateNotifierProvider<HabitsNotifier, AsyncValue<List<Habit>>>((ref) {
-  return HabitsNotifier(ref);
+final habitsProvider = AsyncNotifierProvider<HabitsNotifier, List<Habit>>(() {
+  return HabitsNotifier();
 });
 
-class HabitsNotifier extends StateNotifier<AsyncValue<List<Habit>>> {
-  final Ref _ref;
-  HabitsNotifier(this._ref) : super(const AsyncValue.loading()) {
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final repo = await _ref.read(habitRepoProvider.future);
-      final habits = await repo.getAllHabits();
-      state = AsyncValue.data(habits);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+class HabitsNotifier extends AsyncNotifier<List<Habit>> {
+  @override
+  FutureOr<List<Habit>> build() async {
+    final repo = await ref.watch(habitRepoProvider.future);
+    return repo.getAllHabits();
   }
 
   Future<void> save(Habit habit) async {
-    final repo = await _ref.read(habitRepoProvider.future);
+    final repo = await ref.read(habitRepoProvider.future);
     await repo.saveHabit(habit);
-    await load();
+    ref.invalidateSelf();
+    await future;
   }
 
   Future<void> delete(String id) async {
-    final repo = await _ref.read(habitRepoProvider.future);
+    final repo = await ref.read(habitRepoProvider.future);
     await repo.deleteHabit(id);
-    await load();
+    ref.invalidateSelf();
+    await future;
   }
 
   Future<void> toggleArchive(String id) async {
-    final repo = await _ref.read(habitRepoProvider.future);
+    final repo = await ref.read(habitRepoProvider.future);
     final habit = await repo.getHabit(id);
     if (habit != null) {
       await repo.saveHabit(habit.copyWith(archived: !habit.archived));
-      await load();
+      ref.invalidateSelf();
+      await future;
     }
+  }
+
+  Future<void> saveAll(List<Habit> habits) async {
+    final repo = await ref.read(habitRepoProvider.future);
+    await repo.saveAllHabits(habits);
+    ref.invalidateSelf();
+    await future;
   }
 }
 
 // --- Habit Entries ---
 
-final habitEntriesProvider = StateNotifierProvider<HabitEntriesNotifier, AsyncValue<List<HabitEntry>>>((ref) {
-  return HabitEntriesNotifier(ref);
+final habitEntriesProvider = AsyncNotifierProvider<HabitEntriesNotifier, List<HabitEntry>>(() {
+  return HabitEntriesNotifier();
 });
 
-class HabitEntriesNotifier extends StateNotifier<AsyncValue<List<HabitEntry>>> {
-  final Ref _ref;
-  HabitEntriesNotifier(this._ref) : super(const AsyncValue.loading()) {
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final repo = await _ref.read(habitRepoProvider.future);
-      final entries = await repo.getAllEntries();
-      state = AsyncValue.data(entries);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+class HabitEntriesNotifier extends AsyncNotifier<List<HabitEntry>> {
+  @override
+  FutureOr<List<HabitEntry>> build() async {
+    final repo = await ref.watch(habitRepoProvider.future);
+    return repo.getAllEntries();
   }
 
   Future<void> save(HabitEntry entry) async {
-    final repo = await _ref.read(habitRepoProvider.future);
+    final repo = await ref.read(habitRepoProvider.future);
     await repo.saveEntry(entry);
-    await load();
+    ref.invalidateSelf();
+    await future;
   }
 
   Future<void> delete(String id) async {
-    final repo = await _ref.read(habitRepoProvider.future);
+    final repo = await ref.read(habitRepoProvider.future);
     await repo.deleteEntry(id);
-    await load();
+    ref.invalidateSelf();
+    await future;
   }
 }
 
 // --- Upgrades ---
 
-final upgradesProvider = StateNotifierProvider<UpgradesNotifier, AsyncValue<List<UpgradeGroup>>>((ref) {
-  return UpgradesNotifier(ref);
+final upgradesProvider = AsyncNotifierProvider<UpgradesNotifier, List<UpgradeGroup>>(() {
+  return UpgradesNotifier();
 });
 
-// --- Upgrade Habits (memberships) ---
-
-final upgradeHabitsProvider = StateNotifierProvider<UpgradeHabitsNotifier, AsyncValue<List<UpgradeHabit>>>((ref) {
-  return UpgradeHabitsNotifier(ref);
-});
-
-class UpgradeHabitsNotifier extends StateNotifier<AsyncValue<List<UpgradeHabit>>> {
-  final Ref _ref;
-  UpgradeHabitsNotifier(this._ref) : super(const AsyncValue.loading()) {
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final repo = await _ref.read(upgradeHabitRepoProvider.future);
-      final memberships = await repo.getAll();
-      state = AsyncValue.data(memberships);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
-  }
-
-  Future<void> save(UpgradeHabit membership) async {
-    final repo = await _ref.read(upgradeHabitRepoProvider.future);
-    await repo.save(membership);
-    await load();
-  }
-}
-
-class UpgradesNotifier extends StateNotifier<AsyncValue<List<UpgradeGroup>>> {
-  final Ref _ref;
-  UpgradesNotifier(this._ref) : super(const AsyncValue.loading()) {
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final repo = await _ref.read(upgradeRepoProvider.future);
-      final upgrades = await repo.getAllUpgrades();
-      state = AsyncValue.data(upgrades);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+class UpgradesNotifier extends AsyncNotifier<List<UpgradeGroup>> {
+  @override
+  FutureOr<List<UpgradeGroup>> build() async {
+    final repo = await ref.watch(upgradeRepoProvider.future);
+    return repo.getAllUpgrades();
   }
 
   Future<void> save(UpgradeGroup upgrade) async {
-    final repo = await _ref.read(upgradeRepoProvider.future);
+    final repo = await ref.read(upgradeRepoProvider.future);
     await repo.saveUpgrade(upgrade);
-    await load();
+    ref.invalidateSelf();
+    await future;
   }
 
   Future<void> delete(String id) async {
-    final repo = await _ref.read(upgradeRepoProvider.future);
+    final repo = await ref.read(upgradeRepoProvider.future);
     await repo.deleteUpgrade(id);
-    await load();
+    ref.invalidateSelf();
+    await future;
+  }
+}
+
+// --- Upgrade Habits (memberships) ---
+
+final upgradeHabitsProvider = AsyncNotifierProvider<UpgradeHabitsNotifier, List<UpgradeHabit>>(() {
+  return UpgradeHabitsNotifier();
+});
+
+class UpgradeHabitsNotifier extends AsyncNotifier<List<UpgradeHabit>> {
+  @override
+  FutureOr<List<UpgradeHabit>> build() async {
+    final repo = await ref.watch(upgradeHabitRepoProvider.future);
+    return repo.getAll();
+  }
+
+  Future<void> save(UpgradeHabit membership) async {
+    final repo = await ref.read(upgradeHabitRepoProvider.future);
+    await repo.save(membership);
+    ref.invalidateSelf();
+    await future;
+  }
+
+  Future<void> saveAll(List<UpgradeHabit> memberships) async {
+    final repo = await ref.read(upgradeHabitRepoProvider.future);
+    await repo.saveAll(memberships);
+    ref.invalidateSelf();
+    await future;
   }
 }
 
 // --- Goals ---
 
-final goalsProvider = StateNotifierProvider<GoalsNotifier, AsyncValue<List<Goal>>>((ref) {
-  return GoalsNotifier(ref);
+final goalsProvider = AsyncNotifierProvider<GoalsNotifier, List<Goal>>(() {
+  return GoalsNotifier();
 });
 
-class GoalsNotifier extends StateNotifier<AsyncValue<List<Goal>>> {
-  final Ref _ref;
-  GoalsNotifier(this._ref) : super(const AsyncValue.loading()) {
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final repo = await _ref.read(goalRepoProvider.future);
-      final goals = await repo.getAllGoals();
-      state = AsyncValue.data(goals);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+class GoalsNotifier extends AsyncNotifier<List<Goal>> {
+  @override
+  FutureOr<List<Goal>> build() async {
+    final repo = await ref.watch(goalRepoProvider.future);
+    return repo.getAllGoals();
   }
 
   Future<void> save(Goal goal) async {
-    final repo = await _ref.read(goalRepoProvider.future);
+    final repo = await ref.read(goalRepoProvider.future);
     await repo.saveGoal(goal);
-    await load();
+    ref.invalidateSelf();
+    await future;
   }
 
   Future<void> delete(String id) async {
-    final repo = await _ref.read(goalRepoProvider.future);
+    final repo = await ref.read(goalRepoProvider.future);
     await repo.deleteGoal(id);
-    await load();
+    ref.invalidateSelf();
+    await future;
   }
 }
 
 // --- Achievements ---
 
-final achievementsProvider = StateNotifierProvider<AchievementsNotifier, AsyncValue<List<Achievement>>>((ref) {
-  return AchievementsNotifier(ref);
+final achievementsProvider = AsyncNotifierProvider<AchievementsNotifier, List<Achievement>>(() {
+  return AchievementsNotifier();
 });
 
-class AchievementsNotifier extends StateNotifier<AsyncValue<List<Achievement>>> {
-  final Ref _ref;
-  AchievementsNotifier(this._ref) : super(const AsyncValue.loading()) {
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final repo = await _ref.read(achievementRepoProvider.future);
-      final achievements = await repo.getUnlockedAchievements();
-      state = AsyncValue.data(achievements);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+class AchievementsNotifier extends AsyncNotifier<List<Achievement>> {
+  @override
+  FutureOr<List<Achievement>> build() async {
+    final repo = await ref.watch(achievementRepoProvider.future);
+    return repo.getUnlockedAchievements();
   }
 
   Future<void> unlock(Achievement achievement) async {
-    final repo = await _ref.read(achievementRepoProvider.future);
+    final repo = await ref.read(achievementRepoProvider.future);
     await repo.unlockAchievement(achievement);
-    await load();
+    ref.invalidateSelf();
+    await future;
   }
 }
 
 // --- Timeline ---
 
-final timelineProvider = StateNotifierProvider<TimelineNotifier, AsyncValue<List<TimelineEvent>>>((ref) {
-  return TimelineNotifier(ref);
+final timelineProvider = AsyncNotifierProvider<TimelineNotifier, List<TimelineEvent>>(() {
+  return TimelineNotifier();
 });
 
-class TimelineNotifier extends StateNotifier<AsyncValue<List<TimelineEvent>>> {
-  final Ref _ref;
-  TimelineNotifier(this._ref) : super(const AsyncValue.loading()) {
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final repo = await _ref.read(timelineRepoProvider.future);
-      final events = await repo.getAllEvents();
-      state = AsyncValue.data(events);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+class TimelineNotifier extends AsyncNotifier<List<TimelineEvent>> {
+  @override
+  FutureOr<List<TimelineEvent>> build() async {
+    final repo = await ref.watch(timelineRepoProvider.future);
+    return repo.getAllEvents();
   }
 
   Future<void> addEvent(TimelineEvent event) async {
-    final repo = await _ref.read(timelineRepoProvider.future);
+    final repo = await ref.read(timelineRepoProvider.future);
     await repo.addEvent(event);
-    await load();
+    ref.invalidateSelf();
+    await future;
   }
 }
+
+final gamificationEngineProvider = Provider<GamificationEngine>((ref) {
+  return GamificationEngine(ref);
+});
 
 // --- Derived / computed providers ---
 
 final todayHabitsProvider = Provider<List<Habit>>((ref) {
-  final habits = ref.watch(habitsProvider);
-  return habits.valueOrNull?.where((h) => !h.archived).toList() ?? [];
+  final habitsAsync = ref.watch(habitsProvider);
+  final habits = habitsAsync.valueOrNull ?? [];
+  return habits.where((h) {
+    if (h.archived) return false;
+    return AppDateUtils.shouldCompleteToday(h.frequency, h.frequencyConfig);
+  }).toList();
 });
 
 final todayEntriesProvider = Provider<List<HabitEntry>>((ref) {
@@ -450,5 +415,11 @@ final liveUpgradeScoreProvider = Provider.family<double, String>((ref, upgradeId
 
 final upgradeHabitsForUpgradeProvider = Provider.family<List<UpgradeHabit>, String>((ref, upgradeId) {
   final memberships = ref.watch(upgradeHabitsProvider).valueOrNull ?? [];
-  return memberships.where((m) => m.upgradeId == upgradeId).toList();
+  final habits = ref.watch(habitsProvider).valueOrNull ?? [];
+  
+  // Filter for memberships in this upgrade where the linked habit exists and is not archived
+  return memberships.where((m) => 
+    m.upgradeId == upgradeId && 
+    habits.any((h) => h.id == m.habitId && !h.archived)
+  ).toList();
 });

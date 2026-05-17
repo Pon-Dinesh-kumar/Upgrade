@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../domain/entities/upgrade_habit.dart';
 import '../../domain/repositories/upgrade_habit_repository.dart';
 import '../datasources/local/local_storage.dart';
@@ -6,6 +7,7 @@ class UpgradeHabitRepositoryImpl implements UpgradeHabitRepository {
   static const String _storageKey = 'upgrade_habits';
 
   final LocalStorage _storage;
+  Completer<void>? _writeLock;
 
   UpgradeHabitRepositoryImpl(this._storage);
 
@@ -41,22 +43,51 @@ class UpgradeHabitRepositoryImpl implements UpgradeHabitRepository {
 
   @override
   Future<void> save(UpgradeHabit membership) async {
-    final list = await _storage.readList(_storageKey);
-    final index = list.indexWhere((m) => m['id'] == membership.id);
-    final json = membership.toJson();
-    if (index >= 0) {
-      list[index] = json;
-    } else {
-      list.add(json);
+    await saveAll([membership]);
+  }
+
+  @override
+  Future<void> saveAll(List<UpgradeHabit> membershipsToSave) async {
+    while (_writeLock != null) {
+      await _writeLock!.future;
     }
-    await _storage.writeList(_storageKey, list);
+    _writeLock = Completer<void>();
+
+    try {
+      final list = await _storage.readList(_storageKey);
+      for (final membership in membershipsToSave) {
+        final index = list.indexWhere((m) => m['id'] == membership.id);
+        final json = membership.toJson();
+        if (index >= 0) {
+          list[index] = json;
+        } else {
+          list.add(json);
+        }
+      }
+      await _storage.writeList(_storageKey, list);
+    } finally {
+      final lock = _writeLock;
+      _writeLock = null;
+      lock?.complete();
+    }
   }
 
   @override
   Future<void> delete(String id) async {
-    final list = await _storage.readList(_storageKey);
-    list.removeWhere((m) => m['id'] == id);
-    await _storage.writeList(_storageKey, list);
+    while (_writeLock != null) {
+      await _writeLock!.future;
+    }
+    _writeLock = Completer<void>();
+
+    try {
+      final list = await _storage.readList(_storageKey);
+      list.removeWhere((m) => m['id'] == id);
+      await _storage.writeList(_storageKey, list);
+    } finally {
+      final lock = _writeLock;
+      _writeLock = null;
+      lock?.complete();
+    }
   }
 
   @override

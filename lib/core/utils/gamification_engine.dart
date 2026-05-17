@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../domain/entities/habit.dart';
@@ -16,6 +17,15 @@ class GamificationEngine {
 
   Future<void> completeHabit(Habit habit) async {
     final today = AppDateUtils.today();
+    
+    // Check if habit was already completed today to prevent XP exploit
+    final entries = _ref.read(habitEntriesProvider).valueOrNull ?? [];
+    final alreadyDone = entries.any((e) => 
+      e.habitId == habit.id && 
+      AppDateUtils.isSameDay(e.date, today) && 
+      e.completed
+    );
+
     final entry = HabitEntry(
       habitId: habit.id,
       date: today,
@@ -30,15 +40,24 @@ class GamificationEngine {
     );
     await _ref.read(habitsProvider.notifier).save(updatedHabit);
 
+    // Only grant XP if this is the FIRST completion of the day
+    if (!alreadyDone) {
+      final xpBase = AppConstants.xpByDifficulty[habit.difficulty] ?? 10;
+      final streakBonus = (xpBase * (min(newStreak - 1, 10) * 0.1)).floor();
+      final totalXp = xpBase + streakBonus;
+      
+      await _ref.read(userProfileProvider.notifier).addXp(totalXp);
+    }
+
     await _checkStreakAchievements(newStreak);
     await _updatePlayerStreak();
   }
 
   Future<void> evaluateUpgrade(String upgradeId) async {
-    await _ref.read(habitEntriesProvider.notifier).load();
-    await _ref.read(habitsProvider.notifier).load();
-    await _ref.read(upgradesProvider.notifier).load();
-    await _ref.read(upgradeHabitsProvider.notifier).load();
+    await _ref.read(habitEntriesProvider.future);
+    await _ref.read(habitsProvider.future);
+    await _ref.read(upgradesProvider.future);
+    await _ref.read(upgradeHabitsProvider.future);
 
     final upgrade = (_ref.read(upgradesProvider).valueOrNull ?? [])
         .where((u) => u.id == upgradeId)
@@ -99,7 +118,7 @@ class GamificationEngine {
   }
 
   Future<void> evaluateDueUpgrades() async {
-    await _ref.read(upgradesProvider.notifier).load();
+    await _ref.read(upgradesProvider.future);
     final today = AppDateUtils.today();
     final dueUpgrades = (_ref.read(upgradesProvider).valueOrNull ?? [])
         .where((u) =>
@@ -129,7 +148,7 @@ class GamificationEngine {
   }
 
   Future<void> removeHabitFromUpgrade(String habitId, String upgradeId) async {
-    await _ref.read(upgradeHabitsProvider.notifier).load();
+    await _ref.read(upgradeHabitsProvider.future);
     final memberships = (_ref.read(upgradeHabitsProvider).valueOrNull ?? [])
         .where((m) => m.habitId == habitId && m.upgradeId == upgradeId && m.leftDate == null)
         .toList();
@@ -142,7 +161,7 @@ class GamificationEngine {
   }
 
   Future<int> _calculateStreak(String habitId) async {
-    await _ref.read(habitEntriesProvider.notifier).load();
+    await _ref.read(habitEntriesProvider.future);
     final entries = _ref.read(habitEntriesProvider).valueOrNull ?? [];
     final habitEntries = entries
         .where((e) => e.habitId == habitId && e.completed)
@@ -224,7 +243,3 @@ class GamificationEngine {
     await _ref.read(userProfileProvider.notifier).updateStreak(maxStreak);
   }
 }
-
-final gamificationEngineProvider = Provider<GamificationEngine>((ref) {
-  return GamificationEngine(ref);
-});
