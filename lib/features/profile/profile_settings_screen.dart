@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/card_shell.dart';
-import '../../core/widgets/notion_avatar_display.dart';
+import '../../core/widgets/minimalist_avatar_display.dart';
 import '../../data/providers.dart';
 import '../../domain/entities/user_profile.dart';
 import 'avatar_editor_screen.dart';
@@ -167,11 +167,11 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          // Notion Avatar Preview
+                          // Minimalist Avatar Preview
                           GestureDetector(
                             onTap: () {
                               setState(() {
-                                _localProfile = displayProfile.copyWith(avatarType: 'notion');
+                                _localProfile = displayProfile.copyWith(avatarType: 'minimalist');
                               });
                             },
                             child: Column(
@@ -184,7 +184,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                       height: 90,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        border: displayProfile.avatarType == 'notion'
+                                        border: displayProfile.avatarType == 'minimalist'
                                             ? Border.all(color: theme.colorScheme.primary, width: 4)
                                             : Border.all(color: theme.dividerColor.withValues(alpha: 0.1), width: 1),
                                       ),
@@ -197,9 +197,9 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                         color: theme.dividerColor.withValues(alpha: 0.1),
                                       ),
                                       clipBehavior: Clip.antiAlias,
-                                      child: NotionAvatarDisplay(avatarData: displayProfile.avatarData, size: 74),
+                                      child: MinimalistAvatarDisplay(avatarData: displayProfile.avatarData, size: 74),
                                     ),
-                                    if (displayProfile.avatarType == 'notion')
+                                    if (displayProfile.avatarType == 'minimalist')
                                       Positioned(
                                         right: 0,
                                         top: 0,
@@ -216,11 +216,11 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Notion',
+                                  'Minimalist',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    fontWeight: displayProfile.avatarType == 'notion' ? FontWeight.bold : FontWeight.normal,
-                                    color: displayProfile.avatarType == 'notion' ? theme.colorScheme.primary : null,
+                                    fontWeight: displayProfile.avatarType == 'minimalist' ? FontWeight.bold : FontWeight.normal,
+                                    color: displayProfile.avatarType == 'minimalist' ? theme.colorScheme.primary : null,
                                   ),
                                 ),
                               ],
@@ -333,7 +333,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                               });
                             }
                           },
-                          child: const Text('Customize Notion Avatar'),
+                          child: const Text('Customize Minimalist Avatar'),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -377,7 +377,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             setState(() {
                               _localProfile = displayProfile.copyWith(
                                 clearCustomAvatar: true,
-                                avatarType: 'notion',
+                                avatarType: 'minimalist',
                               );
                             });
                             

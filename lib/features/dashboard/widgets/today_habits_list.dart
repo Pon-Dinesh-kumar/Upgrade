@@ -255,6 +255,7 @@ class _HabitCard extends ConsumerWidget {
         
       HapticFeedback.lightImpact();
       await ref.read(gamificationEngineProvider).uncompleteHabit(habit, entry.id);
+      await ref.read(gamificationEngineProvider).evaluateDueUpgrades();
     } else {
       HapticFeedback.mediumImpact();
       await ref.read(gamificationEngineProvider).completeHabit(habit);

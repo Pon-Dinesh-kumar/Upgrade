@@ -119,16 +119,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                mainAxisSize: MainAxisSize.min,
                                children: [
                                  Text(
-                                   name,
-                                   style: theme.textTheme.titleLarge?.copyWith(
-                                     fontWeight: FontWeight.bold,
-                                   ),
-                                 ),
-                                 Text(
                                    greeting,
                                    style: theme.textTheme.bodyMedium?.copyWith(
                                      color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
                                      height: 1.1,
+                                   ),
+                                 ),
+                                 Text(
+                                   name,
+                                   style: theme.textTheme.titleLarge?.copyWith(
+                                     fontWeight: FontWeight.bold,
                                    ),
                                  ),
                                ],
@@ -178,7 +178,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                     AppAvatar(
                                       avatarData: profile?.avatarData,
                                       customAvatarPath: profile?.customAvatarPath,
-                                      avatarType: profile?.avatarType ?? 'notion',
+                                      avatarType: profile?.avatarType ?? 'minimalist',
                                       size: 36,
                                       onTap: () => context.push('/profile'),
                                     ),

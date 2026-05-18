@@ -145,42 +145,73 @@ class AIMemoryState {
 }
 
 AIAssistantResponse parseAIResponse(String raw) {
-  // Expect JSON body: {"reply":"...", "proposedActions":[...]}
-  String normalized = raw.trim();
-  if (normalized.startsWith('```')) {
-    final firstNewline = normalized.indexOf('\n');
-    final lastFence = normalized.lastIndexOf('```');
-    if (firstNewline > 0 && lastFence > firstNewline) {
-      normalized = normalized.substring(firstNewline + 1, lastFence).trim();
+  // Try to find a JSON block in the response
+  String content = raw.trim();
+
+  // 1. Try to extract from markdown code blocks if present
+  final jsonPattern = RegExp(r'```(?:json)?\s*([\s\S]*?)\s*```', multiLine: true);
+  final matches = jsonPattern.allMatches(content);
+  
+  if (matches.isNotEmpty) {
+    for (final match in matches) {
+      final candidate = match.group(1)!.trim();
+      if (candidate.contains('"reply"') || candidate.contains('"proposedActions"')) {
+        content = candidate;
+        break;
+      }
+    }
+  } else {
+    // 2. Try to find the first { and last } if no markdown block
+    final start = content.indexOf('{');
+    final end = content.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      content = content.substring(start, end + 1);
     }
   }
 
   Map<String, dynamic>? jsonMap;
   try {
-    jsonMap = jsonDecode(normalized) as Map<String, dynamic>;
-  } catch (_) {
-    final start = normalized.indexOf('{');
-    final end = normalized.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      final candidate = normalized.substring(start, end + 1);
-      try {
-        jsonMap = jsonDecode(candidate) as Map<String, dynamic>;
-      } catch (_) {}
+    jsonMap = jsonDecode(content) as Map<String, dynamic>;
+  } catch (e) {
+    // 3. Fallback for raw text that might be valid JSON but missing braces or with extra text
+    final looksLikeJson = raw.trim().startsWith('{') || 
+                         raw.trim().contains('"proposedActions"') || 
+                         raw.trim().contains('"reply"');
+    if (looksLikeJson && raw.length < 2000) {
+      // If it's short, it might just be the AI talking normally or a slightly malformed JSON
+      if (!raw.contains('{')) {
+        return AIAssistantResponse(reply: raw.trim(), proposedActions: const []);
+      }
     }
+    return AIAssistantResponse(reply: raw.trim(), proposedActions: const []);
   }
 
-  if (jsonMap == null) {
-    return AIAssistantResponse(reply: normalized.trim(), proposedActions: const []);
+  final reply = jsonMap['reply']?.toString() ?? '';
+  
+  // Robustly handle proposedActions being null, a single map, or a list
+  final actionsRaw = jsonMap['proposedActions'];
+  final List<AIToolAction> actionList = [];
+  
+  if (actionsRaw is List) {
+    for (final item in actionsRaw) {
+      if (item is Map) {
+        try {
+          actionList.add(AIToolAction.fromJson(
+            item.map((k, v) => MapEntry(k.toString(), v))
+          ));
+        } catch (_) {}
+      }
+    }
+  } else if (actionsRaw is Map) {
+    try {
+      actionList.add(AIToolAction.fromJson(
+        actionsRaw.map((k, v) => MapEntry(k.toString(), v))
+      ));
+    } catch (_) {}
   }
 
-  final actionList = ((jsonMap['proposedActions'] as List?) ?? const [])
-      .whereType<Map>()
-      .map((m) => AIToolAction.fromJson(
-          m.map((k, v) => MapEntry(k.toString(), v))))
-      .toList();
-  final reply = (jsonMap['reply'] as String?)?.trim();
   return AIAssistantResponse(
-    reply: (reply == null || reply.isEmpty) ? normalized.trim() : reply,
+    reply: reply.isNotEmpty ? reply : raw.trim(),
     proposedActions: actionList,
   );
 }

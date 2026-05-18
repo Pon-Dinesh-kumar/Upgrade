@@ -39,9 +39,24 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final hasProfile = ref.read(hasProfileProvider);
       final isOnboarding = state.matchedLocation == '/onboarding';
+      final isLaunch = state.matchedLocation == '/launch';
 
-      if (!hasProfile && !isOnboarding) return '/onboarding';
-      if (hasProfile && isOnboarding) return '/';
+      // If no profile, must go to onboarding
+      if (!hasProfile && !isOnboarding && !isLaunch) return '/onboarding';
+
+      // If we have a profile but just finished onboarding, show launch screen
+      if (hasProfile && isOnboarding) {
+        return '/launch';
+      }
+
+      // If we are on launch but should be home (already finished launch before)
+      if (hasProfile && isLaunch) {
+        final prefs = ref.read(sharedPrefsProvider).valueOrNull;
+        if (prefs != null && prefs.getBool('onboarding_launch_complete') == true) {
+          return '/';
+        }
+      }
+
       return null;
     },
     routes: [

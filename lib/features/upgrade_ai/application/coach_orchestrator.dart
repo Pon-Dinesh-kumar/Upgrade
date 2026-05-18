@@ -37,24 +37,26 @@ Primary objective: improve user's habits, consistency, and upgrade completion.
 Conversation style:
 - Sound like a real coach, not a robotic assistant.
 - Start with empathy + short reflection, then practical direction.
-- Keep answers concise and natural (usually 4-10 lines unless asked for deep detail).
+- Keep answers concise and natural (usually 4-10 lines).
 - Ask clarifying questions when intent is unclear.
-- Avoid dumping schema, JSON, payloads, or internal details to the user.
+- NEVER dump raw JSON, schema, or tool internals to the user.
 
 Action policy:
 - Prefer conversation and planning first.
-- By default, do not propose app-changing actions in the first response to a topic.
-- First ask 1-2 clarifying questions if requirements are incomplete.
-- Only propose app-changing actions when user explicitly asks to create/edit/update/delete or says "apply/go ahead".
-- Never claim an action is executed; execution happens only after user confirmation.
+- ONLY propose app-changing actions when user explicitly asks to create/edit/update/delete or says "apply/go ahead".
+- NEVER claim an action is executed or "applying changes now". Always say "I am proposing to..." or "I have prepared the changes for your review below".
+- Execution only happens after user manually confirms via the UI buttons.
 - Allowed action types: createHabit, editHabit, createUpgrade, editUpgrade, createGoal, editGoal.
+- YOU MUST INCLUDE THE `proposedActions` FIELD IN YOUR JSON RESPONSE EVEN IF EMPTY.
+- IF YOU ARE PROPOSING ACTIONS, YOU MUST INCLUDE THE FULL LIST IN THE `proposedActions` ARRAY.
+- FOR MULTIPLE ACTIONS (e.g., creating an upgrade AND a habit), INCLUDE BOTH IN THE SAME `proposedActions` LIST.
 
 Response requirements:
 - End with one concrete next step.
-- If user sounds overwhelmed, reduce plan to one tiny action.
 - Use provided context as source of truth.
-- Never show JSON, schema or tool internals in user-facing prose.
 - Before proposing any create/edit action, ask for all missing required fields.
+- YOUR RESPONSE MUST BE VALID JSON.
+- DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON BLOCK.
 ''';
 
   String _strictnessStyleInstruction(int strictness) {
@@ -403,10 +405,12 @@ ${memory.activeCommitments.join(', ')}
       return 'I hear you. Let us take one strong step now. Tell me what matters most this week so I can build your accountability plan.';
     }
     // Remove accidental JSON leakage if model ignored formatting.
-    if (reply.startsWith('{') && reply.contains('"proposedActions"')) {
-      return 'I have a plan for you. Before we make changes, tell me if you want a strict daily plan or a lighter starter plan.';
+    final trimmed = reply.trim();
+    if ((trimmed.startsWith('{') && trimmed.contains('"reply"')) || 
+        (trimmed.startsWith('```') && trimmed.contains('"reply"'))) {
+      return 'I have a concrete plan for you. Review the proposed action card below and let me know if you want to proceed.';
     }
-    if (!reply.contains('?') && userText.trim().split(' ').length > 4) {
+    if (!reply.contains('?') && userText.trim().split(' ').length > 4 && !reply.contains('Review the proposed')) {
       reply = '$reply\n\nWhat feels hardest right now so I can coach you precisely?';
     }
     return reply;
@@ -789,12 +793,13 @@ Original request: "$userText"
         lower.contains('edited') ||
         lower.contains('done') ||
         lower.contains('completed') ||
+        lower.contains('applying') ||
         lower.contains('i have added') ||
         lower.contains('i added') ||
         lower.contains('i changed');
     if (!hasClaim) return reply;
-    return '''I have a concrete plan, but I have not executed any app changes yet.
-Review the proposed action card and confirm, or share missing details so I can prepare the exact edit.
+    return '''Note: I have prepared the plan, but I cannot execute app changes directly.
+Please review the proposed action card below and click "Open Editor" to finalize.
 
 $reply''';
   }

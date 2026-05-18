@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_logo_icon.dart';
 import '../../core/widgets/card_shell.dart';
@@ -30,6 +31,9 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
   bool _hasApiKey = false;
   Timer? _typingTimer;
   int _typingDots = 0;
+
+  // Toggle this to show/hide the actual AI features
+  final bool _showComingSoon = true;
 
   @override
   bool get wantKeepAlive => true;
@@ -143,53 +147,66 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
     final keyCtrl = TextEditingController(text: await store.getApiKey() ?? '');
     String model = currentModel;
     if (!mounted) return;
-    await showDialog<void>(
+    
+    final success = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: const Text('Set up Upgrade AI'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Align(alignment: Alignment.centerLeft, child: Text('Paste your Gemini API key')),
-              const SizedBox(height: 8),
-              TextField(
-                controller: keyCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(hintText: 'AIza...', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: model,
-                isExpanded: true,
-                items: const [
-                  DropdownMenuItem(value: 'gemini-2.5-flash', child: Text('gemini-2.5-flash')),
-                  DropdownMenuItem(value: 'gemini-flash-latest', child: Text('gemini-flash-latest')),
-                  DropdownMenuItem(value: 'gemini-2.0-flash', child: Text('gemini-2.0-flash')),
-                ],
-                onChanged: (v) {
-                  if (v == null) return;
-                  setDialogState(() => model = v);
-                },
-                decoration: const InputDecoration(labelText: 'Model'),
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Align(alignment: Alignment.centerLeft, child: Text('Paste your Gemini API key')),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: keyCtrl,
+                  obscureText: true,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: 'AIza...',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: model,
+                  isExpanded: true,
+                  items: const [
+                    DropdownMenuItem(value: 'gemini-2.5-flash', child: Text('gemini-2.5-flash')),
+                    DropdownMenuItem(value: 'gemini-flash-latest', child: Text('gemini-flash-latest')),
+                    DropdownMenuItem(value: 'gemini-2.0-flash', child: Text('gemini-2.0-flash')),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setDialogState(() => model = v);
+                  },
+                  decoration: const InputDecoration(labelText: 'Model'),
+                ),
+              ],
+            ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
               onPressed: () async {
                 final key = keyCtrl.text.trim();
                 if (key.isEmpty) return;
+                
+                // Unfocus before popping to avoid keyboard/focus issues
+                FocusScope.of(ctx).unfocus();
+                
                 await store.setProvider('gemini');
                 await store.setModel(model);
                 await store.setApiKey(key);
-                if (!mounted) return;
-                setState(() {
-                  _hasApiKey = true;
-                  _error = null;
-                });
-                if (ctx.mounted) Navigator.of(ctx).pop();
+                
+                if (ctx.mounted) {
+                  Navigator.of(ctx).pop(true);
+                }
               },
               child: const Text('Save'),
             ),
@@ -197,6 +214,20 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
         ),
       ),
     );
+
+    if (success == true && mounted) {
+      final hasApiKey = (await store.getApiKey())?.trim().isNotEmpty == true;
+      if (mounted) {
+        // Small delay to let dialog pop animation finish smoothly
+        await Future.delayed(const Duration(milliseconds: 50));
+        if (!mounted) return;
+        
+        setState(() {
+          _hasApiKey = hasApiKey;
+          _error = null;
+        });
+      }
+    }
     keyCtrl.dispose();
   }
 
@@ -366,6 +397,149 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
     super.build(context);
     final theme = Theme.of(context);
     final profile = ref.watch(userProfileProvider).valueOrNull;
+
+    if (_showComingSoon) {
+      return Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          titleSpacing: 8,
+          title: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Upgrade AI'),
+              SizedBox(height: 2),
+              Text(
+                'Intelligence for your growth',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+              ),
+            ],
+          ),
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          child: Column(
+            children: [
+              // Construction Icon & Animation
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppColors.blue.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 64,
+                    color: AppColors.blue,
+                  ),
+                )
+                .animate(onPlay: (c) => c.repeat())
+                .shimmer(duration: 2.seconds, color: Colors.white24)
+                .shake(hz: 2, curve: Curves.easeInOut),
+              ),
+              
+              const SizedBox(height: 32),
+              
+              // "Coming Soon" Text
+              Text(
+                'Under Construction',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
+              ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2),
+              
+              const SizedBox(height: 12),
+              
+              Text(
+                'We are fine-tuning your personal accountability partner. Greatness takes time.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.textTheme.bodySmall?.color,
+                ),
+              ).animate().fadeIn(delay: 200.ms, duration: 600.ms),
+              
+              const SizedBox(height: 48),
+              
+              // Feature List Header
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'WHAT TO EXPECT',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppColors.blue,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ).animate().fadeIn(delay: 400.ms),
+              
+              const SizedBox(height: 16),
+              
+              // Feature Items
+              _FeatureItem(
+                icon: Icons.verified_user_rounded,
+                title: 'Personal Accountability Partner',
+                subtitle: 'A coach that tracks your progress and keeps you on schedule.',
+                delay: 500.ms,
+              ),
+              _FeatureItem(
+                icon: Icons.edit_calendar_rounded,
+                title: 'Adaptive Habit Planning',
+                subtitle: 'Smart suggestions based on your daily energy and routine.',
+                delay: 600.ms,
+              ),
+              _FeatureItem(
+                icon: Icons.insights_rounded,
+                title: 'Behavioral Insights',
+                subtitle: 'Deep analysis of your performance trends and weak spots.',
+                delay: 700.ms,
+              ),
+              _FeatureItem(
+                icon: Icons.psychology_rounded,
+                title: 'Proactive Coaching',
+                subtitle: 'Real-time motivation when you need it most.',
+                delay: 800.ms,
+              ),
+              _FeatureItem(
+                icon: Icons.celebration_rounded,
+                title: 'Smart Milestone Celebrations',
+                subtitle: 'Recognition that feels human for every big win.',
+                delay: 900.ms,
+              ),
+              
+              const SizedBox(height: 40),
+              
+              // Bottom CTA/Status
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: theme.dividerColor.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.blue),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Training neural networks...',
+                      style: theme.textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                ),
+              ).animate().fadeIn(delay: 1200.ms),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -432,8 +606,9 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
       ),
       body: Column(
         children: [
-          if (!_hasApiKey)
-            Padding(
+          Offstage(
+            offstage: _hasApiKey,
+            child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
               child: CardShell(
                 borderColor: AppColors.blue.withValues(alpha: 0.35),
@@ -473,6 +648,7 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
                 ),
               ),
             ),
+          ),
           if (_error != null)
             Container(
               width: double.infinity,
@@ -490,6 +666,7 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
                   final m = _messages[index];
                   final isUser = m.role == AIMessageRole.user;
                   return Padding(
+                    key: ValueKey('msg_${m.id}'),
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -521,7 +698,7 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
                           AppAvatar(
                             avatarData: profile?.avatarData,
                             customAvatarPath: profile?.customAvatarPath,
-                            avatarType: profile?.avatarType ?? 'notion',
+                            avatarType: profile?.avatarType ?? 'minimalist',
                             size: 28,
                           ),
                         ],
@@ -532,6 +709,7 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
                 if (_sending && index == _messages.length) {
                   final dots = '.' * _typingDots;
                   return Padding(
+                    key: const ValueKey('typing_indicator'),
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
                       children: [
@@ -555,6 +733,7 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
                 final actionStart = _messages.length + (_sending ? 1 : 0);
                 final action = _pendingActions[index - actionStart];
                 return Padding(
+                  key: ValueKey('action_${action.id}'),
                   padding: const EdgeInsets.only(bottom: 8),
                   child: CardShell(
                     padding: const EdgeInsets.all(12),
@@ -590,8 +769,10 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
               },
             ),
           ),
-          if (_messages.isEmpty && _hasApiKey)
-            SingleChildScrollView(
+          Visibility(
+            visible: _messages.isEmpty && _hasApiKey,
+            maintainState: true,
+            child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
               child: Row(
@@ -613,6 +794,7 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
                 ],
               ),
             ),
+          ),
           SafeArea(
             top: false,
             child: Padding(
@@ -652,5 +834,50 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
         ],
       ),
     );
+  }
+}
+
+class _FeatureItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Duration delay;
+
+  const _FeatureItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.delay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 24, color: AppColors.blue.withValues(alpha: 0.7)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: delay, duration: 500.ms).slideX(begin: 0.1);
   }
 }

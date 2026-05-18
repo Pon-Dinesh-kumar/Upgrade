@@ -41,7 +41,7 @@ class AppConstants {
     5: '😄',
   };
 
-  // Avatar part labels for the NotionAvatar customizer UI
+  // Avatar part labels for the Doodle customizer UI
   static const List<String> avatarParts = [
     'face', 'hair', 'eyes', 'eyebrows', 'nose',
     'mouth', 'glasses', 'beard', 'accessories', 'details',
@@ -108,46 +108,52 @@ class AppConstants {
   // ─── Meaningful Upgrade (Goal) Icons ─────────────────────────────────
   // Each icon represents a real-life goal category.
   static const List<int> upgradeIconOptions = [
-    0xe533, // fitness_center (gym/strength)
-    0xe566, // directions_run (running/cardio)
-    0xe3e7, // spa (wellness/meditation)
-    0xea65, // psychology (mindset/brain)
-    0xe80e, // school (education)
-    0xe865, // work (career)
-    0xe263, // attach_money (finance)
-    0xf06bb, // auto_stories (reading/books)
-    0xe0af, // email → code (coding/tech)
-    0xef76, // science (research)
-    0xe559, // brush (art/creativity)
-    0xef63, // music_note (music)
-    0xe52f, // restaurant (nutrition/food)
-    0xe539, // directions_bike (cycling)
-    0xe87c, // favorite (relationships/love)
-    0xe53a, // flight_takeoff (travel)
+    0xe28d, // fitness_center (Physical Fitness)
+    0xe566, // directions_run (Running/Cardio)
+    0xe96c, // self_improvement (Mental Health/Yoga)
+    0xea19, // menu_book (Knowledge/Learning)
+    0xe0af, // business_center (Career/Work)
+    0xef63, // payments (Finance/Money)
+    0xe40a, // palette (Creativity/Art)
+    0xeb8e, // terminal (Tech/Coding)
+    0xe87d, // favorite (Social/Relationships)
+    0xf02e, // home_work (Home/Personal Life)
+    0xe56c, // restaurant (Nutrition/Health)
+    0xe405, // music_note (Hobbies/Music)
+    0xe87a, // explore (Adventure/Travel)
+    0xea35, // eco (Growth/Nature)
+    0xe8e5, // track_changes (Discipline/Focus)
+    0xe666, // auto_awesome_history (Routine/Life)
+    0xe894, // language (Language learning)
+    0xef83, // volunteer_activism (Giving/Kindness)
+    0xeb9b, // rocket_launch (Growth/Ambition)
+    0xebaa, // shield (Security/Protection)
+    0xea4f, // celebration (Milestones)
   ];
 
   // ─── Meaningful Habit Icons ──────────────────────────────────────────
   // Each icon represents a daily actionable habit.
   static const List<int> habitIconOptions = [
-    0xe566, // directions_run (run/jog)
-    0xe536, // directions_walk (walk)
-    0xe533, // fitness_center (exercise)
-    0xe539, // directions_bike (cycling)
-    0xe534, // pool (swimming)
-    0xe3e7, // spa (meditate/relax)
-    0xf06bb, // auto_stories (read)
-    0xe150, // edit (write/journal)
-    0xe52f, // restaurant (eat healthy)
-    0xe798, // local_drink (drink water)
-    0xf0538, // bedtime (sleep)
-    0xe514, // medication (vitamins/pills)
-    0xef63, // music_note (play music)
-    0xe425, // timer (timed practice)
-    0xe877, // task_alt → check_circle (complete task)
-    0xea65, // psychology (learn/study)
-    0xe25a, // self_improvement (yoga)
-    0xe263, // savings (save money)
-    0xe88e, // cleaning_services (clean/organize)
-    0xea35, // eco (plant/garden)
+    0xe566, // directions_run (Run)
+    0xe536, // directions_walk (Walk)
+    0xe28d, // fitness_center (Gym)
+    0xe539, // directions_bike (Cycle)
+    0xe540, // pool (Swim)
+    0xe3e7, // spa (Meditate)
+    0xe96c, // self_improvement (Yoga)
+    0xf06bb, // auto_stories (Read)
+    0xf0668, // edit_note (Journal)
+    0xe798, // local_drink (Drink Water)
+    0xf0538, // bedtime (Sleep)
+    0xe56c, // restaurant (Eat Healthy)
+    0xe514, // medication (Vitamins)
+    0xef64, // savings (Save Money)
+    0xe88e, // cleaning_services (Clean)
+    0xea35, // eco (Garden)
+    0xe8f9, // work (Work)
+    0xe80e, // school (Study)
+    0xe0af, // code (Code)
+    0xe86c, // check_circle (General Task)
+    0xe51a, // sunny (Morning routine)
   ];
 }

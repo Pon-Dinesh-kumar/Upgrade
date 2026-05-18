@@ -6,7 +6,7 @@ class UserProfile {
   final String username;
   final Map<String, int> avatarData;
   final String? customAvatarPath;
-  final String avatarType; // 'notion' or 'custom'
+  final String avatarType; // 'minimalist' or 'custom'
   final int level;
   final int totalXp;
   final int currentStreak;
@@ -54,7 +54,7 @@ class UserProfile {
     required this.username,
     Map<String, int>? avatarData,
     this.customAvatarPath,
-    this.avatarType = 'notion',
+    this.avatarType = 'minimalist',
     this.level = 1,
     this.totalXp = 0,
     this.currentStreak = 0,
@@ -111,7 +111,7 @@ class UserProfile {
         username: json['username'],
         avatarData: Map<String, int>.from(json['avatarData']),
         customAvatarPath: json['customAvatarPath'],
-        avatarType: json['avatarType'] ?? (json['customAvatarPath'] != null ? 'custom' : 'notion'),
+        avatarType: json['avatarType'] ?? (json['customAvatarPath'] != null ? 'custom' : 'minimalist'),
         level: json['level'],
         totalXp: json['totalXp'],
         currentStreak: json['currentStreak'],

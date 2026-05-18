@@ -2,25 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_notion_avatar/flutter_notion_avatar.dart';
 import 'package:flutter_notion_avatar/flutter_notion_avatar_controller.dart';
 
-class NotionAvatarDisplay extends StatefulWidget {
+class MinimalistAvatarDisplay extends StatefulWidget {
   final Map<String, int> avatarData;
   final double size;
 
-  const NotionAvatarDisplay({
+  const MinimalistAvatarDisplay({
     super.key,
     required this.avatarData,
     this.size = 80,
   });
 
   @override
-  State<NotionAvatarDisplay> createState() => _NotionAvatarDisplayState();
+  State<MinimalistAvatarDisplay> createState() => _MinimalistAvatarDisplayState();
 }
 
-class _NotionAvatarDisplayState extends State<NotionAvatarDisplay> {
+class _MinimalistAvatarDisplayState extends State<MinimalistAvatarDisplay> {
   NotionAvatarController? _controller;
 
   @override
-  void didUpdateWidget(covariant NotionAvatarDisplay oldWidget) {
+  void didUpdateWidget(covariant MinimalistAvatarDisplay oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.avatarData != widget.avatarData) {
       _applyConfig();

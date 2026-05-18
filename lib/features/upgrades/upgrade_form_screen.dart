@@ -28,6 +28,7 @@ class _UpgradeFormScreenState extends ConsumerState<UpgradeFormScreen> {
   String _difficulty = 'medium';
   late DateTime _startDate;
   late DateTime _endDate;
+  late TextEditingController _durationCtrl;
   double _cutoffPercentage = 0.7;
   bool _saving = false;
 
@@ -39,6 +40,7 @@ class _UpgradeFormScreenState extends ConsumerState<UpgradeFormScreen> {
     _nameCtrl = TextEditingController();
     _descCtrl = TextEditingController();
     _outcomeCtrl = TextEditingController();
+    _durationCtrl = TextEditingController(text: '30');
 
     final now = DateTime.now();
     _startDate = DateTime(now.year, now.month, now.day);
@@ -60,6 +62,7 @@ class _UpgradeFormScreenState extends ConsumerState<UpgradeFormScreen> {
     _nameCtrl.text = existing.name;
     _descCtrl.text = existing.description;
     _outcomeCtrl.text = existing.outcomeDescription ?? '';
+    _durationCtrl.text = existing.endDate.difference(existing.startDate).inDays.toString();
     setState(() {
       _selectedIconCodePoint = existing.iconCodePoint;
       _selectedColor = existing.color;
@@ -92,7 +95,22 @@ class _UpgradeFormScreenState extends ConsumerState<UpgradeFormScreen> {
     _nameCtrl.dispose();
     _descCtrl.dispose();
     _outcomeCtrl.dispose();
+    _durationCtrl.dispose();
     super.dispose();
+  }
+
+  void _updateEndDateFromDuration() {
+    final days = int.tryParse(_durationCtrl.text) ?? 0;
+    if (days > 0) {
+      setState(() {
+        _endDate = _startDate.add(Duration(days: days));
+      });
+    }
+  }
+
+  void _updateDurationFromDates() {
+    final diff = _endDate.difference(_startDate).inDays;
+    _durationCtrl.text = diff.toString();
   }
 
   Future<void> _save() async {
@@ -250,13 +268,34 @@ class _UpgradeFormScreenState extends ConsumerState<UpgradeFormScreen> {
             ),
 
             const SizedBox(height: 24),
-            Text('Date Range', style: theme.textTheme.titleMedium),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Duration (Days)', style: theme.textTheme.titleMedium),
+                SizedBox(
+                  width: 60,
+                  child: TextField(
+                    controller: _durationCtrl,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    onChanged: (_) => _updateEndDateFromDuration(),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: CardShell(
-                    onTap: _pickStartDate,
+                    onTap: () async {
+                      await _pickStartDate();
+                      _updateEndDateFromDuration();
+                    },
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     child: Row(
@@ -279,7 +318,10 @@ class _UpgradeFormScreenState extends ConsumerState<UpgradeFormScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: CardShell(
-                    onTap: _pickEndDate,
+                    onTap: () async {
+                      await _pickEndDate();
+                      _updateDurationFromDates();
+                    },
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     child: Row(
@@ -423,16 +465,17 @@ class _IconGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    return GridView.count(
+      crossAxisCount: 7,
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       children: _icons.map((code) {
         final isSelected = code == selected;
         return GestureDetector(
           onTap: () => onSelect(code),
           child: Container(
-            width: 44,
-            height: 44,
             decoration: BoxDecoration(
               color: isSelected
                   ? accentColor.withValues(alpha: 0.12)

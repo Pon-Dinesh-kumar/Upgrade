@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/card_shell.dart';
-import '../../core/widgets/notion_avatar_display.dart';
+import '../../core/widgets/minimalist_avatar_display.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../core/constants/app_constants.dart';
 
@@ -33,7 +33,7 @@ class _AvatarEditorScreenState extends ConsumerState<AvatarEditorScreen> {
   void _save() {
     final updatedProfile = widget.profile.copyWith(
       avatarData: Map<String, int>.from(_avatarData),
-      avatarType: 'notion',
+      avatarType: 'minimalist',
     );
     Navigator.of(context).pop(updatedProfile);
   }
@@ -48,7 +48,7 @@ class _AvatarEditorScreenState extends ConsumerState<AvatarEditorScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Customize Avatar'),
+        title: const Text('Customize Minimalist Avatar'),
         automaticallyImplyLeading: false,
         actions: [
           TextButton(
@@ -70,7 +70,7 @@ class _AvatarEditorScreenState extends ConsumerState<AvatarEditorScreen> {
             child: Center(
               child: Column(
                 children: [
-                  NotionAvatarDisplay(
+                  MinimalistAvatarDisplay(
                     avatarData: _avatarData,
                     size: 160,
                   ),

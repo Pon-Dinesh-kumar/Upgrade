@@ -47,6 +47,14 @@ class GamificationEngine {
       final totalXp = xpBase + streakBonus;
       
       await _ref.read(userProfileProvider.notifier).addXp(totalXp);
+      
+      // Log XP gain to timeline
+      await _ref.read(timelineProvider.notifier).addEvent(TimelineEvent(
+        type: 'habit_completion',
+        title: 'Habit Completed',
+        description: '${habit.name} (+$totalXp XP)',
+        linkedEntityId: habit.id,
+      ));
     }
 
     await _checkAchievement('first_completion');
@@ -66,6 +74,14 @@ class GamificationEngine {
 
     // Subtract the XP
     await _ref.read(userProfileProvider.notifier).addXp(-totalXpAwarded);
+
+    // Log XP loss to timeline
+    await _ref.read(timelineProvider.notifier).addEvent(TimelineEvent(
+      type: 'habit_completion',
+      title: 'Habit Uncompleted',
+      description: '${habit.name} (-$totalXpAwarded XP)',
+      linkedEntityId: habit.id,
+    ));
 
     // Update streak for the habit
     final newStreak = await _calculateStreak(habit.id);

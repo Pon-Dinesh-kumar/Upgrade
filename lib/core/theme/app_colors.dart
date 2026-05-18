@@ -40,7 +40,7 @@ class AppColors {
     'hard': amber,
   };
 
-  // -- Upgrade color palette (Notion-style muted) --
+  // -- Upgrade color palette (Minimalist muted) --
   static const List<int> upgradeColorOptions = [
     0xFF9B9B9B, // grey
     0xFF937264, // brown

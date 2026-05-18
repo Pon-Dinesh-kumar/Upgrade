@@ -97,18 +97,18 @@ class HabitCard extends StatelessWidget {
                             spacing: 4,
                             runSpacing: 4,
                             children: [
-                              _NotionTag(
+                              _MinimalistTag(
                                 label: habit.difficulty[0].toUpperCase() +
                                     habit.difficulty.substring(1),
                                 color: diffColor,
                               ),
                               if (upgradeName != null)
-                                _NotionTag(
+                                _MinimalistTag(
                                   label: upgradeName!,
                                   color: displayColor,
                                 ),
                               if (habit.frequency != 'daily')
-                                _NotionTag(
+                                _MinimalistTag(
                                   label: habit.frequency,
                                   color: AppColors.blue,
                                 ),
@@ -130,10 +130,10 @@ class HabitCard extends StatelessWidget {
   }
 }
 
-class _NotionTag extends StatelessWidget {
+class _MinimalistTag extends StatelessWidget {
   final String label;
   final Color color;
-  const _NotionTag({required this.label, required this.color});
+  const _MinimalistTag({required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {

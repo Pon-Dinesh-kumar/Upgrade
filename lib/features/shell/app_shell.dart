@@ -104,27 +104,34 @@ class _AppShellState extends State<AppShell> {
   }
 
   @override
+  void didUpdateWidget(AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.navigationShell.currentIndex != oldWidget.navigationShell.currentIndex) {
+      if (!_isAnimating && _pageController.hasClients) {
+        final page = _pageController.page?.round();
+        if (page != widget.navigationShell.currentIndex) {
+          _pageController.jumpToPage(widget.navigationShell.currentIndex);
+        }
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final index = widget.navigationShell.currentIndex;
     final isWide = MediaQuery.of(context).size.width > 600;
     
-    // Sync page controller if index changes externally (e.g. back button, deep link)
-    if (!_isAnimating) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _pageController.hasClients) {
-          final page = _pageController.page?.round();
-          if (page != index) {
-            _pageController.jumpToPage(index);
-          }
-        }
-      });
-    }
-
     final pageView = PageView(
+      key: const ValueKey('AppShellPageView'),
       controller: _pageController,
       physics: const BouncingScrollPhysics(),
       onPageChanged: _onPageChanged,
-      children: widget.children,
+      children: widget.children.asMap().entries.map((e) {
+        return KeyedSubtree(
+          key: ValueKey('Branch_${e.key}'),
+          child: e.value,
+        );
+      }).toList(),
     );
 
     // content is ALWAYS the pageView to support universal swipe

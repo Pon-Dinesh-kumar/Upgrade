@@ -45,20 +45,23 @@ $context
 RECENT_CONVERSATION:
 $conversationText
 
-Respond ONLY with valid JSON:
+Task: Respond to the user as their Upgrade AI Coach.
+IMPORTANT: You MUST respond with a JSON object. Do not include any text outside the JSON.
+
+JSON Schema:
 {
-  "reply": "assistant message to user",
+  "reply": "Your coaching message in plain text. Do not use markdown code blocks here. Be concise.",
   "proposedActions": [
     {
-      "id": "string",
+      "id": "unique_id",
       "type": "createHabit|editHabit|createUpgrade|editUpgrade|createGoal|editGoal",
-      "reason": "why this action helps accountability",
-      "payload": { "..." : "..." }
+      "reason": "short explanation of why this action is being proposed",
+      "payload": { ... }
     }
   ]
 }
 
-If no actions are needed, return empty array for proposedActions.
+If no actions are proposed, "proposedActions" should be [].
 '''
             }
           ]

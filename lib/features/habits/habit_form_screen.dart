@@ -340,16 +340,17 @@ class _HabitFormScreenState extends ConsumerState<HabitFormScreen> {
 
   Widget _buildIconPicker() {
     final accentColor = AppColors.blue;
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    return GridView.count(
+      crossAxisCount: 7,
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       children: _iconOptions.map((code) {
         final isSelected = code == _iconCodePoint;
         return GestureDetector(
           onTap: () => setState(() => _iconCodePoint = code),
           child: Container(
-            width: 44,
-            height: 44,
             decoration: BoxDecoration(
               color: isSelected
                   ? accentColor.withValues(alpha: 0.12)

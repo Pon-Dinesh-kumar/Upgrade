@@ -1,8 +1,10 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:confetti/confetti.dart';
 import '../../data/providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_logo_icon.dart';
@@ -20,6 +22,7 @@ class _LaunchAnimationScreenState extends ConsumerState<LaunchAnimationScreen>
   double _xpProgress = 0.0;
   bool _showLevelUp = false;
   bool _canProceed = false;
+  late ConfettiController _confettiController;
 
   static const _tasks = [
     (icon: Icons.download_rounded, useAppLogo: false, label: 'Install UPGRADE'),
@@ -30,7 +33,14 @@ class _LaunchAnimationScreenState extends ConsumerState<LaunchAnimationScreen>
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 5));
     _runSequence();
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    super.dispose();
   }
 
   Future<void> _runSequence() async {
@@ -50,6 +60,7 @@ class _LaunchAnimationScreenState extends ConsumerState<LaunchAnimationScreen>
     if (!mounted) return;
     HapticFeedback.mediumImpact();
     setState(() => _showLevelUp = true);
+    _confettiController.play();
 
     await Future.delayed(1200.ms);
     if (!mounted) return;
@@ -57,6 +68,10 @@ class _LaunchAnimationScreenState extends ConsumerState<LaunchAnimationScreen>
   }
 
   void _finish() async {
+    // Save that we've seen the onboarding launch screen
+    final prefs = await ref.read(sharedPrefsProvider.future);
+    await prefs.setBool('onboarding_launch_complete', true);
+
     // Final check for data
     await ref.read(habitsProvider.future);
     await ref.read(upgradesProvider.future);
@@ -67,170 +82,215 @@ class _LaunchAnimationScreenState extends ConsumerState<LaunchAnimationScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final userProfile = ref.watch(userProfileProvider).valueOrNull;
+    final username = userProfile?.username ?? 'Novice';
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                children: [
+                  const Spacer(flex: 2),
 
-              Text(
-                _showLevelUp ? 'Level 1' : 'Level 0',
-                style: theme.textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: _showLevelUp ? AppColors.green : theme.textTheme.bodySmall?.color,
-                  fontSize: _showLevelUp ? 48 : 40,
-                ),
-              ).animate(target: _showLevelUp ? 1 : 0).scale(
-                    begin: const Offset(1, 1),
-                    end: const Offset(1.1, 1.1),
-                    duration: 400.ms,
-                    curve: Curves.easeOutCubic,
-                  ),
-              const SizedBox(height: 8),
-
-              if (!_showLevelUp)
-                Text(
-                  'Starting your journey...',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.textTheme.bodySmall?.color,
-                  ),
-                ).animate().fadeIn(duration: 300.ms)
-              else
-                Text(
-                  'Welcome, ${_canProceed ? "let\u2019s go!" : "Novice"}',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: AppColors.blue,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ).animate().fadeIn(duration: 300.ms),
-
-              const SizedBox(height: 32),
-
-              Container(
-                height: 8,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  color: theme.dividerColor,
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Stack(
-                      children: [
-                        AnimatedContainer(
-                          duration: 500.ms,
-                          curve: Curves.easeOutCubic,
-                          width: constraints.maxWidth * _xpProgress,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(4),
-                            color: _showLevelUp ? AppColors.green : AppColors.blue,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${(_xpProgress * 100).round()} / 100 XP',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.textTheme.bodySmall?.color,
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              ...List.generate(3, (i) {
-                final task = _tasks[i];
-                final done = i < _completedTasks;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    children: [
-                      AnimatedContainer(
-                        duration: 300.ms,
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: done
-                              ? AppColors.green.withValues(alpha: 0.15)
-                              : theme.dividerColor.withValues(alpha: 0.3),
-                        ),
-                        child: Center(
-                          child: done
-                              ? const Icon(Icons.check_rounded,
-                                  size: 20, color: AppColors.green)
-                              : task.useAppLogo
-                                  ? AppLogoIcon(
-                                      size: 18,
-                                      color: theme.textTheme.bodySmall?.color,
-                                    )
-                                  : Icon(task.icon,
-                                      size: 18,
-                                      color: theme.textTheme.bodySmall?.color),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(
-                          task.label,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: done ? FontWeight.w600 : FontWeight.w400,
-                            color: done
-                                ? theme.textTheme.bodyLarge?.color
-                                : theme.textTheme.bodySmall?.color,
-                            decoration:
-                                done ? TextDecoration.lineThrough : null,
-                            decorationColor: AppColors.green,
-                          ),
-                        ),
-                      ),
-                      if (done)
-                        Text('+33 XP',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.amber,
-                              fontWeight: FontWeight.w600,
-                            )),
-                    ],
-                  ),
-                )
-                    .animate(target: done ? 1 : 0)
-                    .fadeIn(duration: 250.ms);
-              }),
-
-              const Spacer(flex: 3),
-
-              if (_canProceed)
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _finish,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.blue,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                  Text(
+                    _showLevelUp ? 'Level 1' : 'Level 0',
+                    style: theme.textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: _showLevelUp ? AppColors.green : theme.textTheme.bodySmall?.color,
+                      fontSize: _showLevelUp ? 48 : 40,
                     ),
-                    child: const Text('Start Your Journey',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w600)),
-                  ),
-                ).animate().fadeIn(duration: 300.ms).slideY(
-                    begin: 0.2, curve: Curves.easeOutCubic),
+                  ).animate(target: _showLevelUp ? 1 : 0).scale(
+                        begin: const Offset(1, 1),
+                        end: const Offset(1.1, 1.1),
+                        duration: 400.ms,
+                        curve: Curves.easeOutCubic,
+                      ),
+                  const SizedBox(height: 8),
 
-              const SizedBox(height: 32),
-            ],
+                  if (!_showLevelUp)
+                    Text(
+                      'Starting your journey...',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.textTheme.bodySmall?.color,
+                      ),
+                    ).animate().fadeIn(duration: 300.ms)
+                  else
+                    Text(
+                      'Welcome, $username, let\u2019s go!',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: AppColors.blue,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ).animate().fadeIn(duration: 300.ms),
+
+                  const SizedBox(height: 32),
+
+                  Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4),
+                      color: theme.dividerColor,
+                    ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Stack(
+                          children: [
+                            AnimatedContainer(
+                              duration: 500.ms,
+                              curve: Curves.easeOutCubic,
+                              width: constraints.maxWidth * _xpProgress,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(4),
+                                color: _showLevelUp ? AppColors.green : AppColors.blue,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${(_xpProgress * 100).round()} / 100 XP',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.textTheme.bodySmall?.color,
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  ...List.generate(3, (i) {
+                    final task = _tasks[i];
+                    final done = i < _completedTasks;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        children: [
+                          AnimatedContainer(
+                            duration: 300.ms,
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: done
+                                  ? AppColors.green.withValues(alpha: 0.15)
+                                  : theme.dividerColor.withValues(alpha: 0.3),
+                            ),
+                            child: Center(
+                              child: done
+                                  ? const Icon(Icons.check_rounded,
+                                      size: 20, color: AppColors.green)
+                                  : task.useAppLogo
+                                      ? AppLogoIcon(
+                                          size: 18,
+                                          color: theme.textTheme.bodySmall?.color,
+                                        )
+                                      : Icon(task.icon,
+                                          size: 18,
+                                          color: theme.textTheme.bodySmall?.color),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(
+                              task.label,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: done ? FontWeight.w600 : FontWeight.w400,
+                                color: done
+                                    ? theme.textTheme.bodyLarge?.color
+                                    : theme.textTheme.bodySmall?.color,
+                                decoration:
+                                    done ? TextDecoration.lineThrough : null,
+                                decorationColor: AppColors.green,
+                              ),
+                            ),
+                          ),
+                          if (done)
+                            Text(i == 2 ? '+34 XP' : '+33 XP',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.amber,
+                                  fontWeight: FontWeight.w600,
+                                )),
+                        ],
+                      ),
+                    )
+                        .animate(target: done ? 1 : 0)
+                        .fadeIn(duration: 250.ms);
+                  }),
+
+                  const Spacer(flex: 3),
+
+                  if (_canProceed)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _finish,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.blue,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Start Your Journey',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w600)),
+                      ),
+                    ).animate().fadeIn(duration: 300.ms).slideY(
+                        begin: 0.2, curve: Curves.easeOutCubic),
+
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
           ),
-        ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirectionality: BlastDirectionality.explosive,
+              shouldLoop: false,
+              colors: const [
+                AppColors.blue,
+                AppColors.green,
+                AppColors.amber,
+                Colors.white,
+              ],
+              createParticlePath: drawStar,
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Path drawStar(Size size) {
+    // Method to draw a star shape
+    double degToRad(double deg) => deg * (pi / 180.0);
+
+    const numberOfPoints = 5;
+    final halfWidth = size.width / 2;
+    final externalRadius = halfWidth;
+    final internalRadius = halfWidth / 2.5;
+    final degreesPerStep = degToRad(360 / numberOfPoints);
+    final halfDegreesPerStep = degreesPerStep / 2;
+    final path = Path();
+    final fullAngle = degToRad(360);
+    path.moveTo(size.width, halfWidth);
+
+    for (double step = 0; step < fullAngle; step += degreesPerStep) {
+      path.lineTo(halfWidth + externalRadius * cos(step),
+          halfWidth + externalRadius * sin(step));
+      path.lineTo(halfWidth + internalRadius * cos(step + halfDegreesPerStep),
+          halfWidth + internalRadius * sin(step + halfDegreesPerStep));
+    }
+    path.close();
+    return path;
   }
 }

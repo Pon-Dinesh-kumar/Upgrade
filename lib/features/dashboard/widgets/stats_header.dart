@@ -54,12 +54,15 @@ class StatsHeader extends ConsumerWidget {
                       children: [
                         Text(
                           '${_greeting()},',
-                          style: theme.textTheme.bodyMedium,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.textTheme.bodySmall?.color,
+                          ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
                           profile.username,
-                          style: theme.textTheme.headlineMedium,
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 8),

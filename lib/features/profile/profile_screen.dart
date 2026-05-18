@@ -80,11 +80,14 @@ class ProfileScreen extends ConsumerWidget {
               ).animate().fadeIn(duration: 250.ms),
               const SizedBox(height: 24),
 
-              XpBar(
-                progress: progress,
-                level: profile.level,
-                currentXp: currentXpInLevel.clamp(0, xpForNext),
-                xpForNext: xpForNext,
+              GestureDetector(
+                onTap: () => _showXpLog(context, ref),
+                child: XpBar(
+                  progress: progress,
+                  level: profile.level,
+                  currentXp: currentXpInLevel.clamp(0, xpForNext),
+                  xpForNext: xpForNext,
+                ),
               ).animate().fadeIn(duration: 250.ms),
               const SizedBox(height: 24),
 
@@ -128,6 +131,146 @@ class ProfileScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  void _showXpLog(BuildContext context, WidgetRef ref) {
+    final timelineAsync = ref.read(timelineProvider);
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'XP Log',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'History of your achievements and growth',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.textTheme.bodySmall?.color,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Flexible(
+                child: timelineAsync.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Error: $e')),
+                  data: (events) {
+                    final xpEvents = events
+                        .where((e) =>
+                            e.type == 'habit_completion' ||
+                            e.type == 'upgrade_evaluation' ||
+                            e.type == 'onboarding_completion')
+                        .toList()
+                      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+                    if (xpEvents.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Icon(Icons.history_toggle_off_rounded,
+                                  size: 48, color: theme.dividerColor),
+                              const SizedBox(height: 12),
+                              Text('No XP history yet',
+                                  style: theme.textTheme.bodyLarge),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: xpEvents.length,
+                      separatorBuilder: (context, index) =>
+                          Divider(color: theme.dividerColor, height: 24),
+                      itemBuilder: (context, index) {
+                        final event = xpEvents[index];
+                        final isPositive = !event.description.contains('-');
+
+                        return Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: (isPositive
+                                        ? AppColors.green
+                                        : AppColors.red)
+                                    .withValues(alpha: 0.1),
+                              ),
+                              child: Icon(
+                                event.type == 'habit_completion'
+                                    ? Icons.check_circle_outline_rounded
+                                    : event.type == 'upgrade_evaluation'
+                                        ? Icons.rocket_launch_outlined
+                                        : Icons.auto_awesome_rounded,
+                                size: 18,
+                                color:
+                                    isPositive ? AppColors.green : AppColors.red,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    event.title,
+                                    style: theme.textTheme.bodyLarge?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    event.description,
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              _formatTimestamp(event.timestamp),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatTimestamp(DateTime ts) {
+    final now = DateTime.now();
+    if (ts.year == now.year && ts.month == now.month && ts.day == now.day) {
+      return '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}';
+    }
+    return '${ts.day}/${ts.month}';
   }
 }
 

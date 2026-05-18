@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -12,12 +13,13 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_logo_icon.dart';
 import '../../core/widgets/card_shell.dart';
-import '../../core/widgets/notion_avatar_display.dart';
+import '../../core/widgets/minimalist_avatar_display.dart';
 import '../../data/providers.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../domain/entities/habit.dart';
 import '../../domain/entities/upgrade_group.dart';
 import '../../domain/entities/upgrade_habit.dart';
+import '../../domain/entities/timeline_event.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -33,12 +35,33 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // Page 3 – Upgrade state
   final _upgradeNameController = TextEditingController();
   final _outcomeController = TextEditingController();
+  final _upgradeDurationController = TextEditingController(text: '30');
   String _upgradeDifficulty = 'medium';
   late DateTime _startDate = DateTime.now();
   late DateTime _endDate = DateTime.now().add(const Duration(days: 30));
   double _cutoff = 0.7;
   int _upgradeColor = AppColors.upgradeColorOptions[5]; // blue default
   int _upgradeIcon = AppConstants.upgradeIconOptions.first; // fitness_center default
+
+  @override
+  void initState() {
+    super.initState();
+    _upgradeDurationController.addListener(_onDurationChanged);
+  }
+
+  void _onDurationChanged() {
+    final days = int.tryParse(_upgradeDurationController.text) ?? 0;
+    if (days > 0) {
+      setState(() {
+        _endDate = _startDate.add(Duration(days: days));
+      });
+    }
+  }
+
+  void _updateDurationFromDates() {
+    final diff = _endDate.difference(_startDate).inDays;
+    _upgradeDurationController.text = diff.toString();
+  }
 
   // Page 4 – Habits state
   final List<_HabitDraft> _habits = [];
@@ -140,6 +163,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _pageController.dispose();
     _upgradeNameController.dispose();
     _outcomeController.dispose();
+    _upgradeDurationController.dispose();
     _usernameController.dispose();
     super.dispose();
   }
@@ -257,16 +281,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       style: theme.textTheme.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                  GridView.count(
+                    crossAxisCount: 7,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
                     children: _habitIconOptions.map((code) {
                       final sel = code == selectedIcon;
                       return GestureDetector(
                         onTap: () => setSheetState(() => selectedIcon = code),
                         child: Container(
-                          width: 38,
-                          height: 38,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
                             color: sel
@@ -506,7 +531,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         username: _usernameController.text.trim(),
         avatarData: _avatarData,
         customAvatarPath: _customAvatarPath,
-        avatarType: _customAvatarPath != null ? 'custom' : 'notion',
+        avatarType: _customAvatarPath != null ? 'custom' : 'minimalist',
       );
       
       // Wait for profile to save - this is the signal to the router that onboarding is done
@@ -530,6 +555,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final engine = ref.read(gamificationEngineProvider);
       await engine.checkHabitCreationAchievements();
       await engine.checkUpgradeCreationAchievements();
+
+      // Log onboarding XP gain
+      await ref.read(timelineProvider.notifier).addEvent(TimelineEvent(
+        type: 'onboarding_completion',
+        title: 'Initial Level Up',
+        description: 'Completed onboarding journey (+100 XP)',
+      ));
 
       if (mounted) context.go('/launch');
     } catch (e) {
@@ -566,6 +598,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   _CreateUpgradePage(
                     nameController: _upgradeNameController,
                     outcomeController: _outcomeController,
+                    durationController: _upgradeDurationController,
                     difficulty: _upgradeDifficulty,
                     startDate: _startDate,
                     endDate: _endDate,
@@ -574,12 +607,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     selectedIcon: _upgradeIcon,
                     onDifficultyChanged: (v) =>
                         setState(() => _upgradeDifficulty = v),
-                    onPickDate: _pickDate,
+                    onPickDate: ({required bool isStart}) async {
+                      await _pickDate(isStart: isStart);
+                      if (isStart) {
+                        _onDurationChanged();
+                      } else {
+                        _updateDurationFromDates();
+                      }
+                    },
+                    onDurationChanged: _onDurationChanged,
                     onCutoffChanged: (v) => setState(() => _cutoff = v),
                     onColorChanged: (v) => setState(() => _upgradeColor = v),
                     onIconChanged: (v) => setState(() => _upgradeIcon = v),
                     onNameChanged: () => setState(() {}),
                     onContinue: () {
+                      HapticFeedback.mediumImpact();
                       if (_upgradeNameController.text.trim().isNotEmpty) {
                         _nextPage();
                       }
@@ -588,9 +630,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   _AddHabitsPage(
                     upgradeName: _upgradeNameController.text.trim(),
                     habits: _habits,
-                    onAddHabit: _showAddHabitSheet,
-                    onRemoveHabit: (i) => setState(() => _habits.removeAt(i)),
+                    onAddHabit: () {
+                      HapticFeedback.lightImpact();
+                      _showAddHabitSheet();
+                    },
+                    onRemoveHabit: (i) {
+                      HapticFeedback.selectionClick();
+                      setState(() => _habits.removeAt(i));
+                    },
                     onContinue: () {
+                      HapticFeedback.mediumImpact();
                       if (_habits.isNotEmpty) _nextPage();
                     },
                   ),
@@ -606,7 +655,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         }),
                     onPickCustomAvatar: _pickProfileImage,
                     onUsernameChanged: () => setState(() {}),
-                    onLaunch: _launchApp,
+                    onLaunch: () {
+                      HapticFeedback.heavyImpact();
+                      _launchApp();
+                    },
                   ),
                 ],
               ),
@@ -1002,6 +1054,7 @@ class _FeatureCard extends StatelessWidget {
 class _CreateUpgradePage extends StatelessWidget {
   final TextEditingController nameController;
   final TextEditingController outcomeController;
+  final TextEditingController durationController;
   final String difficulty;
   final DateTime startDate;
   final DateTime endDate;
@@ -1010,6 +1063,7 @@ class _CreateUpgradePage extends StatelessWidget {
   final int selectedIcon;
   final ValueChanged<String> onDifficultyChanged;
   final void Function({required bool isStart}) onPickDate;
+  final VoidCallback onDurationChanged;
   final ValueChanged<double> onCutoffChanged;
   final ValueChanged<int> onColorChanged;
   final ValueChanged<int> onIconChanged;
@@ -1021,6 +1075,7 @@ class _CreateUpgradePage extends StatelessWidget {
   const _CreateUpgradePage({
     required this.nameController,
     required this.outcomeController,
+    required this.durationController,
     required this.difficulty,
     required this.startDate,
     required this.endDate,
@@ -1029,6 +1084,7 @@ class _CreateUpgradePage extends StatelessWidget {
     required this.selectedIcon,
     required this.onDifficultyChanged,
     required this.onPickDate,
+    required this.onDurationChanged,
     required this.onCutoffChanged,
     required this.onColorChanged,
     required this.onIconChanged,
@@ -1133,6 +1189,27 @@ class _CreateUpgradePage extends StatelessWidget {
                         ?.copyWith(fontWeight: FontWeight.w600))
                 .animate()
                 .fadeIn(delay: 230.ms, duration: 250.ms),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Days:', style: TextStyle(fontSize: 14)),
+                SizedBox(
+                  width: 60,
+                  child: TextField(
+                    controller: durationController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    onChanged: (_) => onDurationChanged(),
+                  ),
+                ),
+              ],
+            ).animate().fadeIn(delay: 240.ms, duration: 250.ms),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -1258,23 +1335,24 @@ class _CreateUpgradePage extends StatelessWidget {
                 .animate()
                 .fadeIn(delay: 375.ms, duration: 250.ms),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            GridView.count(
+              crossAxisCount: 7,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               children: _iconOptions.map((code) {
                 final sel = code == selectedIcon;
                 return GestureDetector(
                   onTap: () => onIconChanged(code),
                   child: Container(
-                    width: 40,
-                    height: 40,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       color: sel
-                          ? Color(selectedColor).withValues(alpha: 0.2)
-                          : theme.cardColor,
+                          ? Color(selectedColor).withValues(alpha: 0.15)
+                          : theme.dividerColor.withValues(alpha: 0.1),
                       border: Border.all(
-                        color: sel ? Color(selectedColor) : theme.dividerColor,
+                        color: sel ? Color(selectedColor) : theme.dividerColor.withValues(alpha: 0.3),
                         width: sel ? 2 : 1,
                       ),
                     ),
@@ -1286,7 +1364,7 @@ class _CreateUpgradePage extends StatelessWidget {
                   ),
                 );
               }).toList(),
-            ).animate().fadeIn(delay: 380.ms, duration: 250.ms),
+            ).animate().fadeIn(delay: 385.ms, duration: 250.ms),
             const SizedBox(height: 32),
 
             _PrimaryButton(
@@ -1592,7 +1670,7 @@ class _ProfilePage extends StatelessWidget {
                             File(customAvatarPath!),
                             fit: BoxFit.cover,
                           )
-                        : NotionAvatarDisplay(
+                        : MinimalistAvatarDisplay(
                             avatarData: avatarData,
                             size: 120,
                           ),

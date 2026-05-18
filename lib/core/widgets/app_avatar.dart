@@ -1,12 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'notion_avatar_display.dart';
+import 'minimalist_avatar_display.dart';
 import '../../core/theme/app_colors.dart';
 
 class AppAvatar extends StatelessWidget {
   final Map<String, int>? avatarData;
   final String? customAvatarPath;
-  final String avatarType; // 'notion' or 'custom'
+  final String avatarType; // 'minimalist' or 'custom'
   final double size;
   final VoidCallback? onTap;
   final bool showEditIcon;
@@ -15,7 +15,7 @@ class AppAvatar extends StatelessWidget {
     super.key,
     this.avatarData,
     this.customAvatarPath,
-    this.avatarType = 'notion',
+    this.avatarType = 'minimalist',
     this.size = 40,
     this.onTap,
     this.showEditIcon = false,
@@ -33,7 +33,7 @@ class AppAvatar extends StatelessWidget {
         errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
       );
     } else if (avatarData != null) {
-      avatarChild = NotionAvatarDisplay(
+      avatarChild = MinimalistAvatarDisplay(
         avatarData: avatarData!,
         size: size,
       );
