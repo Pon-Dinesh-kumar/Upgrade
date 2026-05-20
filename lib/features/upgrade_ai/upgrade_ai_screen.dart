@@ -33,7 +33,7 @@ class _UpgradeAIScreenState extends ConsumerState<UpgradeAIScreen> with Automati
   int _typingDots = 0;
 
   // Toggle this to show/hide the actual AI features
-  final bool _showComingSoon = true;
+  final bool _showComingSoon = false;
 
   @override
   bool get wantKeepAlive => true;
