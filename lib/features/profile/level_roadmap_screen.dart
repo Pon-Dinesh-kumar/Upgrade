@@ -4,38 +4,12 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_logo_icon.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/profile_copy.dart';
 import '../../core/utils/xp_calculator.dart';
 import '../../data/providers.dart';
 
 class LevelRoadmapScreen extends ConsumerWidget {
   const LevelRoadmapScreen({super.key});
-
-  // Personal motivational messages per rank tier
-  static const _rankMessages = {
-    'Novice': "Every master was once a beginner. You've taken the hardest step — starting.",
-    'Apprentice': "You're building real momentum. Your habits are becoming part of who you are.",
-    'Adept': "Consistency is your superpower now. Most people quit — you didn't.",
-    'Specialist': "You're in rare territory. Your dedication is shaping a better version of you.",
-    'Expert': "The discipline you've built is extraordinary. You're proof that effort compounds.",
-    'Master': "You've earned mastery through relentless commitment. Few reach this far.",
-    'Grandmaster': "You're among the elite. Your journey inspires everyone around you.",
-    'Legend': "Living proof that extraordinary results come from ordinary efforts, done daily.",
-  };
-
-  // Milestone reward descriptions — what the user "unlocks"
-  static const _milestoneRewards = {
-    1: ('🌱', 'The Seed', 'Your journey begins here. Every great transformation starts with a single step.'),
-    5: ('⚡', 'First Spark', 'You proved this isn\'t just a phase. Momentum is building.'),
-    10: ('🔥', 'On Fire', "Double digits! Your habits are becoming automatic."),
-    15: ('💪', 'Unbreakable', 'You\'ve built a foundation most people never achieve.'),
-    20: ('🌟', 'Rising Star', 'Consistency is your superpower. Keep shining.'),
-    25: ('🏆', 'Champion', 'A quarter-century of levels. That\'s elite dedication.'),
-    30: ('👑', 'Crowned', 'You rule your habits. They don\'t rule you.'),
-    40: ('💎', 'Diamond Mind', 'Forged under pressure, you\'re unbreakable now.'),
-    50: ('🚀', 'Unstoppable', 'Halfway to 100. Nothing can hold you back.'),
-    75: ('🌌', 'Beyond Limits', 'You\'ve transcended what most thought possible.'),
-    100: ('✨', 'Transcendent', 'The ultimate achievement. You ARE the upgrade.'),
-  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,7 +20,6 @@ class LevelRoadmapScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Level Roadmap'),
-        automaticallyImplyLeading: false,
       ),
       body: profileAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -99,8 +72,7 @@ class LevelRoadmapScreen extends ConsumerWidget {
                     activeUpgradeCount: activeUpgrades.length,
                     currentStreak: profile.currentStreak,
                     longestStreak: profile.longestStreak,
-                    motivationalMessage: _rankMessages[currentRank] ??
-                        'Keep going — your future self is cheering you on.',
+                    motivationalMessage: ProfileCopy.rankMessage(currentRank),
                     nextRankName: nextRankEntry?.value,
                     nextRankLevel: nextRankEntry?.key,
                   ).animate().fadeIn(duration: 300.ms).slideY(
@@ -116,7 +88,7 @@ class LevelRoadmapScreen extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: _NextMilestoneCard(
                     currentLevel: currentLevel,
-                    milestoneRewards: _milestoneRewards,
+                    milestoneRewards: ProfileCopy.milestoneRewards,
                   ).animate()
                       .fadeIn(delay: 100.ms, duration: 300.ms)
                       .slideY(begin: 0.05, curve: Curves.easeOutCubic),
@@ -154,7 +126,7 @@ class LevelRoadmapScreen extends ConsumerWidget {
                       final rankEntry = AppConstants.rankTitles
                           .where((e) => e.key == level)
                           .firstOrNull;
-                      final milestone = _milestoneRewards[level];
+                      final milestone = ProfileCopy.milestoneRewards[level];
 
                       return _LevelNode(
                         level: level,
@@ -163,8 +135,8 @@ class LevelRoadmapScreen extends ConsumerWidget {
                         isPast: isPast,
                         progress: isCurrent ? progress : null,
                         rankName: rankEntry?.value,
-                        milestoneEmoji: milestone?.$1,
-                        milestoneTitle: milestone?.$2,
+                        milestoneTitle: milestone?.$1,
+                        milestoneDescription: milestone?.$2,
                         activeUpgradeCount:
                             isCurrent ? activeUpgrades.length : 0,
                         isFirst: index == 0,
@@ -492,7 +464,7 @@ class _HeroStat extends StatelessWidget {
 // ─── Next Milestone Card ────────────────────────────────────────────────────
 class _NextMilestoneCard extends StatelessWidget {
   final int currentLevel;
-  final Map<int, (String, String, String)> milestoneRewards;
+  final Map<int, (String, String)> milestoneRewards;
 
   const _NextMilestoneCard({
     required this.currentLevel,
@@ -526,14 +498,15 @@ class _NextMilestoneCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Text('✨', style: TextStyle(fontSize: 28)),
+            Icon(Icons.emoji_events_outlined,
+                size: 28, color: AppColors.amber.withValues(alpha: 0.8)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'All Milestones Achieved!',
+                    'All milestones reached',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
@@ -576,7 +549,8 @@ class _NextMilestoneCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(next.value.$1, style: const TextStyle(fontSize: 28)),
+          Icon(Icons.flag_outlined,
+              size: 28, color: AppColors.amber.withValues(alpha: 0.85)),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -585,7 +559,7 @@ class _NextMilestoneCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      'Next: ${next.value.$2}',
+                      'Next: ${next.value.$1}',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
@@ -613,7 +587,7 @@ class _NextMilestoneCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  next.value.$3,
+                  next.value.$2,
                   style: TextStyle(
                     fontSize: 12,
                     color: theme.textTheme.bodySmall?.color,
@@ -637,8 +611,8 @@ class _LevelNode extends StatelessWidget {
   final bool isPast;
   final double? progress;
   final String? rankName;
-  final String? milestoneEmoji;
   final String? milestoneTitle;
+  final String? milestoneDescription;
   final int activeUpgradeCount;
   final bool isFirst;
   final bool isLast;
@@ -650,8 +624,8 @@ class _LevelNode extends StatelessWidget {
     required this.isPast,
     this.progress,
     this.rankName,
-    this.milestoneEmoji,
     this.milestoneTitle,
+    this.milestoneDescription,
     required this.activeUpgradeCount,
     required this.isFirst,
     required this.isLast,
@@ -660,7 +634,7 @@ class _LevelNode extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasMilestone = milestoneEmoji != null;
+    final hasMilestone = milestoneTitle != null;
     final hasRank = rankName != null;
     final isSpecial = hasMilestone || hasRank;
 
@@ -805,9 +779,14 @@ class _LevelNode extends StatelessWidget {
                     Row(
                       children: [
                         if (hasMilestone) ...[
-                          Text(milestoneEmoji!,
-                              style: const TextStyle(fontSize: 18)),
-                          const SizedBox(width: 8),
+                          Icon(Icons.star_outline_rounded,
+                              size: 16,
+                              color: isPast
+                                  ? AppColors.green
+                                  : isCurrent
+                                      ? AppColors.blue
+                                      : AppColors.amber),
+                          const SizedBox(width: 6),
                         ],
                         Text(
                           'Level $level',
@@ -839,7 +818,7 @@ class _LevelNode extends StatelessWidget {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              '🏅 $rankName',
+                              rankName!,
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -861,14 +840,13 @@ class _LevelNode extends StatelessWidget {
                       ],
                     ),
 
-                    // Milestone title
                     if (milestoneTitle != null) ...[
                       const SizedBox(height: 4),
                       Text(
                         milestoneTitle!,
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                           color: isPast
                               ? AppColors.green
                               : isCurrent
@@ -876,6 +854,17 @@ class _LevelNode extends StatelessWidget {
                                   : AppColors.amber,
                         ),
                       ),
+                      if (milestoneDescription != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          milestoneDescription!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.textTheme.bodySmall?.color,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
                     ],
 
                     // Current level progress

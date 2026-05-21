@@ -7,6 +7,8 @@ class XpBar extends StatelessWidget {
   final int currentXp;
   final int xpForNext;
   final bool showLabel;
+  final String titlePrefix;
+  final bool showXpNumbers;
 
   const XpBar({
     super.key,
@@ -15,6 +17,8 @@ class XpBar extends StatelessWidget {
     this.currentXp = 0,
     this.xpForNext = 100,
     this.showLabel = true,
+    this.titlePrefix = 'Level',
+    this.showXpNumbers = true,
   });
 
   @override
@@ -32,10 +36,11 @@ class XpBar extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Level $level',
+                Text('$titlePrefix $level',
                     style: Theme.of(context).textTheme.titleMedium),
-                Text('$currentXp / $xpForNext XP',
-                    style: Theme.of(context).textTheme.bodySmall),
+                if (showXpNumbers)
+                  Text('$currentXp / $xpForNext XP',
+                      style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
           ),

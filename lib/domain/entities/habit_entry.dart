@@ -6,6 +6,7 @@ class HabitEntry {
   final DateTime date;
   final double value;
   final bool completed;
+  final bool failed;
   final String? note;
   final int? mood;
   final DateTime timestamp;
@@ -16,6 +17,7 @@ class HabitEntry {
     required this.date,
     this.value = 1.0,
     this.completed = false,
+    this.failed = false,
     this.note,
     this.mood,
     DateTime? timestamp,
@@ -27,6 +29,7 @@ class HabitEntry {
     DateTime? date,
     double? value,
     bool? completed,
+    bool? failed,
     String? note,
     int? mood,
     DateTime? timestamp,
@@ -37,6 +40,7 @@ class HabitEntry {
       date: date ?? this.date,
       value: value ?? this.value,
       completed: completed ?? this.completed,
+      failed: failed ?? this.failed,
       note: note ?? this.note,
       mood: mood ?? this.mood,
       timestamp: timestamp ?? this.timestamp,
@@ -49,6 +53,7 @@ class HabitEntry {
         'date': date.toIso8601String(),
         'value': value,
         'completed': completed,
+        'failed': failed,
         'note': note,
         'mood': mood,
         'timestamp': timestamp.toIso8601String(),
@@ -60,6 +65,7 @@ class HabitEntry {
         date: DateTime.parse(json['date'] as String),
         value: (json['value'] as num?)?.toDouble() ?? 1.0,
         completed: json['completed'] as bool? ?? false,
+        failed: json['failed'] as bool? ?? false,
         note: json['note'] as String?,
         mood: json['mood'] as int?,
         timestamp: DateTime.parse(json['timestamp'] as String),

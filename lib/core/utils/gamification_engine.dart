@@ -17,19 +17,20 @@ class GamificationEngine {
 
   Future<void> completeHabit(Habit habit) async {
     final today = AppDateUtils.today();
-    
-    // Check if habit was already completed today to prevent XP exploit
     final entries = _ref.read(habitEntriesProvider).valueOrNull ?? [];
-    final alreadyDone = entries.any((e) => 
-      e.habitId == habit.id && 
-      AppDateUtils.isSameDay(e.date, today) && 
-      e.completed
-    );
+
+    await _clearTodayEntry(habit.id, today, entries);
+
+    final alreadyDone = entries.any((e) =>
+        e.habitId == habit.id &&
+        AppDateUtils.isSameDay(e.date, today) &&
+        e.completed);
 
     final entry = HabitEntry(
       habitId: habit.id,
       date: today,
       completed: true,
+      failed: false,
     );
     await _ref.read(habitEntriesProvider.notifier).save(entry);
 
@@ -60,6 +61,83 @@ class GamificationEngine {
     await _checkAchievement('first_completion');
     await _checkStreakAchievements(newStreak);
     await _updatePlayerStreak();
+  }
+
+  /// Mark habit as failed for today (or this week) — can be done any time of day.
+  Future<void> failHabit(Habit habit) async {
+    final today = AppDateUtils.today();
+    final entries = _ref.read(habitEntriesProvider).valueOrNull ?? [];
+
+    final existing = entries
+        .where((e) => e.habitId == habit.id && AppDateUtils.isSameDay(e.date, today))
+        .firstOrNull;
+    if (existing?.failed == true && existing?.completed != true) return;
+
+    if (existing != null) {
+      if (existing.completed) {
+        await uncompleteHabit(habit, existing.id);
+        await _ref.read(habitEntriesProvider.future);
+      } else {
+        await _ref.read(habitEntriesProvider.notifier).delete(existing.id);
+      }
+    }
+
+    await _ref.read(habitEntriesProvider.notifier).save(
+          HabitEntry(
+            habitId: habit.id,
+            date: today,
+            completed: false,
+            failed: true,
+          ),
+        );
+
+    final newStreak = await _calculateStreak(habit.id);
+    await _ref.read(habitsProvider.notifier).save(
+          habit.copyWith(currentStreak: newStreak),
+        );
+
+    await _ref.read(timelineProvider.notifier).addEvent(TimelineEvent(
+      type: 'habit_failed',
+      title: 'Habit missed',
+      description: habit.name,
+      linkedEntityId: habit.id,
+    ));
+
+    await _updatePlayerStreak();
+  }
+
+  /// Clear pass/fail for today so the habit is pending again.
+  Future<void> resetHabitDay(Habit habit) async {
+    final today = AppDateUtils.today();
+    final entries = _ref.read(habitEntriesProvider).valueOrNull ?? [];
+    final existing = entries
+        .where((e) => e.habitId == habit.id && AppDateUtils.isSameDay(e.date, today))
+        .firstOrNull;
+    if (existing == null) return;
+
+    if (existing.completed) {
+      await uncompleteHabit(habit, existing.id);
+    } else {
+      await _ref.read(habitEntriesProvider.notifier).delete(existing.id);
+      final newStreak = await _calculateStreak(habit.id);
+      await _ref.read(habitsProvider.notifier).save(
+            habit.copyWith(currentStreak: newStreak),
+          );
+      await _updatePlayerStreak();
+    }
+  }
+
+  Future<void> _clearTodayEntry(
+    String habitId,
+    DateTime today,
+    List<HabitEntry> entries,
+  ) async {
+    final existing = entries
+        .where((e) => e.habitId == habitId && AppDateUtils.isSameDay(e.date, today))
+        .firstOrNull;
+    if (existing != null) {
+      await _ref.read(habitEntriesProvider.notifier).delete(existing.id);
+    }
   }
 
   Future<void> uncompleteHabit(Habit habit, String entryId) async {
@@ -204,31 +282,27 @@ class GamificationEngine {
   Future<int> _calculateStreak(String habitId) async {
     await _ref.read(habitEntriesProvider.future);
     final entries = _ref.read(habitEntriesProvider).valueOrNull ?? [];
-    final habitEntries = entries
-        .where((e) => e.habitId == habitId && e.completed)
-        .toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    var day = AppDateUtils.today();
+    int streak = 0;
 
-    if (habitEntries.isEmpty) return 0;
+    while (true) {
+      final dayEntry = entries
+          .where((e) =>
+              e.habitId == habitId &&
+              AppDateUtils.isSameDay(e.date, day))
+          .firstOrNull;
 
-    int streak = 1;
-    var current = AppDateUtils.today();
-    for (int i = 0; i < habitEntries.length; i++) {
-      final entryDate = DateTime(
-        habitEntries[i].date.year,
-        habitEntries[i].date.month,
-        habitEntries[i].date.day,
-      );
-      if (AppDateUtils.isSameDay(entryDate, current)) {
+      if (dayEntry?.failed == true) break;
+      if (dayEntry?.completed == true) {
+        streak++;
+        day = day.subtract(const Duration(days: 1));
         continue;
       }
-      final yesterday = current.subtract(const Duration(days: 1));
-      if (AppDateUtils.isSameDay(entryDate, yesterday)) {
-        streak++;
-        current = yesterday;
-      } else {
-        break;
+      if (AppDateUtils.isSameDay(day, AppDateUtils.today())) {
+        day = day.subtract(const Duration(days: 1));
+        continue;
       }
+      break;
     }
     return streak;
   }

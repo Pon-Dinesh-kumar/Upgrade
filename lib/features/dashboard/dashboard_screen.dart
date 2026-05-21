@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_logo_icon.dart';
 import '../../core/widgets/app_avatar.dart';
+import '../../core/widgets/upgrade_progress_bar.dart';
 import '../../core/utils/date_utils.dart';
 import '../../data/providers.dart';
 import '../../domain/entities/timeline_event.dart';
@@ -591,7 +592,7 @@ class _UpgradeCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 16),
-            _FlatProgressBar(
+            UpgradeProgressBar(
               score: score,
               cutoff: upgrade.cutoffPercentage,
               color: upgradeColor,
@@ -636,90 +637,6 @@ class _UpgradeCard extends ConsumerWidget {
   }
 }
 
-
-
-class _FlatProgressBar extends StatelessWidget {
-  final double score;
-  final double cutoff;
-  final Color color;
-  final Color trackColor;
-
-  const _FlatProgressBar({
-    required this.score,
-    required this.cutoff,
-    required this.color,
-    required this.trackColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '${(score * 100).round()}%',
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              'Goal: ${(cutoff * 100).round()}%',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        SizedBox(
-          height: 6,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final totalWidth = constraints.maxWidth;
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: totalWidth,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: trackColor,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 600),
-                    curve: Curves.easeOutCubic,
-                    width: (score.clamp(0.0, 1.0) * totalWidth),
-                    height: 6,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(3),
-                      color: color,
-                    ),
-                  ),
-                  Positioned(
-                    left: (cutoff.clamp(0.0, 1.0) * totalWidth) - 0.5,
-                    top: -1,
-                    child: Container(
-                      width: 1,
-                      height: 8,
-                      color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _RecentTimeline extends StatelessWidget {
   final List<TimelineEvent> events;

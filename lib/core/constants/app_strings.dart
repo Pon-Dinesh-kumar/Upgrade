@@ -34,4 +34,21 @@ class AppStrings {
   static const String profile = 'Profile';
   static const String achievements = 'Achievements';
   static const String levelRoadmap = 'Level Roadmap';
+  static const String lifeImpact = 'Life impact';
+  static const String daysShowedUp = 'days you showed up';
+  static const String dayRhythm = 'day rhythm';
+  static const String activeUpgradesCount = 'active upgrades';
+  static const String upgradeTrack = 'Upgrade track';
+  static const String yourUpgrades = 'Your upgrades';
+  static const String upgradeComplete = 'Upgrade complete';
+  static const String viewAllUpgrades = 'View all';
+  static const String noActiveUpgradesProfile =
+      'No active upgrades. Start one to track a bigger change.';
+  static const String growth = 'Growth';
+  static const String growthHistory = 'Growth history';
+  static const String viewRoadmap = 'View roadmap';
+  static const String nextUnlock = 'Next unlock';
+  static const String profileSettings = 'Profile Settings';
+  static const String unlockedOn = 'Unlocked';
+  static const String howToUnlock = 'How to unlock';
 }

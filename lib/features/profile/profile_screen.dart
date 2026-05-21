@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../core/constants/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/xp_calculator.dart';
-import '../../core/widgets/level_badge.dart';
 import '../../core/widgets/app_avatar.dart';
-import '../../core/widgets/xp_bar.dart';
 import '../../data/providers.dart';
 import '../../domain/entities/user_profile.dart';
 import 'profile_settings_screen.dart';
-import 'widgets/achievement_grid.dart';
+import 'widgets/achievements_section.dart';
+import 'widgets/growth_section.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -18,13 +18,12 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(userProfileProvider);
     final entriesAsync = ref.watch(habitEntriesProvider);
-    final achievementsAsync = ref.watch(achievementsProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
-        automaticallyImplyLeading: false,
+        title: const Text(AppStrings.profile),
+        automaticallyImplyLeading: true,
       ),
       body: profileAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -38,9 +37,8 @@ class ProfileScreen extends ConsumerWidget {
                   style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               TextButton(
-                onPressed: () =>
-                    ref.invalidate(userProfileProvider),
-                child: const Text('Retry'),
+                onPressed: () => ref.invalidate(userProfileProvider),
+                child: const Text(AppStrings.retry),
               ),
             ],
           ),
@@ -53,44 +51,32 @@ class ProfileScreen extends ConsumerWidget {
             );
           }
 
-          final progress =
-              XpCalculator.progressToNextLevel(profile.totalXp);
-          final xpForNext =
-              XpCalculator.xpRequiredForLevel(profile.level);
+          final progress = XpCalculator.progressToNextLevel(profile.totalXp);
+          final xpForNext = XpCalculator.xpRequiredForLevel(profile.level);
           final accumulated = XpCalculator.totalXpForLevel(profile.level - 1);
           final currentXpInLevel = profile.totalXp - accumulated;
-
           final completedCount = entriesAsync.valueOrNull
                   ?.where((e) => e.completed)
                   .length ??
               0;
-
-          final unlockedAchievements =
-              achievementsAsync.valueOrNull ?? [];
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
               _ProfileHeader(
                 profile: profile,
-                avatarData: profile.avatarData,
                 username: profile.username,
                 rank: profile.rank,
+              ).animate().fadeIn(duration: 250.ms),
+              const SizedBox(height: 24),
+              GrowthSection(
+                progress: progress,
                 level: profile.level,
+                currentXp: currentXpInLevel.clamp(0, xpForNext),
+                xpForNext: xpForNext,
+                onXpBarTap: () => _showXpLog(context, ref),
               ).animate().fadeIn(duration: 250.ms),
               const SizedBox(height: 24),
-
-              GestureDetector(
-                onTap: () => _showXpLog(context, ref),
-                child: XpBar(
-                  progress: progress,
-                  level: profile.level,
-                  currentXp: currentXpInLevel.clamp(0, xpForNext),
-                  xpForNext: xpForNext,
-                ),
-              ).animate().fadeIn(duration: 250.ms),
-              const SizedBox(height: 24),
-
               _StatsGrid(
                 totalXp: profile.totalXp,
                 currentStreak: profile.currentStreak,
@@ -98,25 +84,19 @@ class ProfileScreen extends ConsumerWidget {
                 completedCount: completedCount,
               ).animate().fadeIn(duration: 250.ms),
               const SizedBox(height: 32),
-
-              Text('Achievements',
-                  style: theme.textTheme.headlineSmall),
-              const SizedBox(height: 12),
-              AchievementGrid(
-                unlocked: unlockedAchievements,
-              ).animate().fadeIn(duration: 250.ms),
+              const AchievementsSection().animate().fadeIn(duration: 250.ms),
               const SizedBox(height: 32),
-
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => ProfileSettingsScreen(profile: profile),
+                      builder: (context) =>
+                          ProfileSettingsScreen(profile: profile),
                     ),
                   ),
                   icon: const Icon(Icons.person_outline_rounded),
-                  label: const Text('Profile Settings'),
+                  label: const Text(AppStrings.profileSettings),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -144,122 +124,134 @@ class ProfileScreen extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'XP Log',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'History of your achievements and growth',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.textTheme.bodySmall?.color,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Flexible(
-                child: timelineAsync.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('Error: $e')),
-                  data: (events) {
-                    final xpEvents = events
-                        .where((e) =>
-                            e.type == 'habit_completion' ||
-                            e.type == 'upgrade_evaluation' ||
-                            e.type == 'onboarding_completion')
-                        .toList()
-                      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.55,
+          minChildSize: 0.35,
+          maxChildSize: 0.85,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppStrings.growthHistory,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Recent growth from habits and upgrades',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.textTheme.bodySmall?.color,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: timelineAsync.when(
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Center(child: Text('Error: $e')),
+                      data: (events) {
+                        final xpEvents = events
+                            .where((e) =>
+                                e.type == 'habit_completion' ||
+                                e.type == 'upgrade_evaluation' ||
+                                e.type == 'onboarding_completion' ||
+                                e.type == 'achievement_unlock')
+                            .toList()
+                          ..sort((a, b) =>
+                              b.timestamp.compareTo(a.timestamp));
 
-                    if (xpEvents.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 40),
-                        child: Center(
-                          child: Column(
-                            children: [
-                              Icon(Icons.history_toggle_off_rounded,
-                                  size: 48, color: theme.dividerColor),
-                              const SizedBox(height: 12),
-                              Text('No XP history yet',
-                                  style: theme.textTheme.bodyLarge),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
+                        if (xpEvents.isEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.history_toggle_off_rounded,
+                                    size: 48, color: theme.dividerColor),
+                                const SizedBox(height: 12),
+                                Text('No growth history yet',
+                                    style: theme.textTheme.bodyLarge),
+                              ],
+                            ),
+                          );
+                        }
 
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: xpEvents.length,
-                      separatorBuilder: (context, index) =>
-                          Divider(color: theme.dividerColor, height: 24),
-                      itemBuilder: (context, index) {
-                        final event = xpEvents[index];
-                        final isPositive = !event.description.contains('-');
+                        return ListView.separated(
+                          controller: scrollController,
+                          itemCount: xpEvents.length,
+                          separatorBuilder: (context, index) =>
+                              Divider(color: theme.dividerColor, height: 24),
+                          itemBuilder: (context, index) {
+                            final event = xpEvents[index];
+                            final isPositive =
+                                !event.description.contains('-');
 
-                        return Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: (isPositive
+                            return Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: (isPositive
+                                            ? AppColors.green
+                                            : AppColors.red)
+                                        .withValues(alpha: 0.1),
+                                  ),
+                                  child: Icon(
+                                    event.type == 'habit_completion'
+                                        ? Icons.check_circle_outline_rounded
+                                        : event.type == 'upgrade_evaluation'
+                                            ? Icons.rocket_launch_outlined
+                                            : event.type == 'achievement_unlock'
+                                                ? Icons.emoji_events_outlined
+                                                : Icons.auto_awesome_rounded,
+                                    size: 18,
+                                    color: isPositive
                                         ? AppColors.green
-                                        : AppColors.red)
-                                    .withValues(alpha: 0.1),
-                              ),
-                              child: Icon(
-                                event.type == 'habit_completion'
-                                    ? Icons.check_circle_outline_rounded
-                                    : event.type == 'upgrade_evaluation'
-                                        ? Icons.rocket_launch_outlined
-                                        : Icons.auto_awesome_rounded,
-                                size: 18,
-                                color:
-                                    isPositive ? AppColors.green : AppColors.red,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    event.title,
-                                    style: theme.textTheme.bodyLarge?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                        : AppColors.red,
                                   ),
-                                  Text(
-                                    event.description,
-                                    style: theme.textTheme.bodySmall,
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        event.title,
+                                        style: theme.textTheme.bodyLarge
+                                            ?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        event.description,
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              _formatTimestamp(event.timestamp),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
+                                ),
+                                Text(
+                                  _formatTimestamp(event.timestamp),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         );
                       },
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -267,7 +259,9 @@ class ProfileScreen extends ConsumerWidget {
 
   String _formatTimestamp(DateTime ts) {
     final now = DateTime.now();
-    if (ts.year == now.year && ts.month == now.month && ts.day == now.day) {
+    if (ts.year == now.year &&
+        ts.month == now.month &&
+        ts.day == now.day) {
       return '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}';
     }
     return '${ts.day}/${ts.month}';
@@ -276,17 +270,13 @@ class ProfileScreen extends ConsumerWidget {
 
 class _ProfileHeader extends StatelessWidget {
   final UserProfile profile;
-  final Map<String, int> avatarData;
   final String username;
   final String rank;
-  final int level;
 
   const _ProfileHeader({
     required this.profile,
-    required this.avatarData,
     required this.username,
     required this.rank,
-    required this.level,
   });
 
   @override
@@ -295,30 +285,20 @@ class _ProfileHeader extends StatelessWidget {
 
     return Column(
       children: [
-        Stack(
-          alignment: Alignment.bottomCenter,
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: theme.dividerColor.withValues(alpha: 0.1),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: AppAvatar(
-                avatarData: avatarData,
-                customAvatarPath: profile.customAvatarPath,
-                avatarType: profile.avatarType,
-                size: 88,
-              ),
-            ),
-            Positioned(
-              bottom: -4,
-              child: LevelBadge(level: level, size: 30),
-            ),
-          ],
+        Container(
+          width: 88,
+          height: 88,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: theme.dividerColor.withValues(alpha: 0.1),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: AppAvatar(
+            avatarData: profile.avatarData,
+            customAvatarPath: profile.customAvatarPath,
+            avatarType: profile.avatarType,
+            size: 88,
+          ),
         ),
         const SizedBox(height: 20),
         Text(
