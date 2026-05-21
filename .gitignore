@@ -1,6 +1,10 @@
 # Miscellaneous
 *.class
 *.log
+build_apk_log.txt
+
+# Local vendored packages (not used by app)
+/packages/
 *.pyc
 *.swp
 .DS_Store
